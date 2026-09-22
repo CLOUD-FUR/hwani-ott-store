@@ -62,7 +62,7 @@ export default function AdminLoginPage() {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="admin"
+                placeholder="관리자 아이디"
                 required
                 className="w-full px-4 py-3 bg-[#0F172A] border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-[#38BDF8] transition-colors"
               />
@@ -100,7 +100,7 @@ export default function AdminLoginPage() {
 
           <div className="mt-6 p-4 bg-[#0F172A]/50 rounded-lg border border-slate-800">
             <p className="text-xs text-slate-400 text-center">
-              관리자 계정은 하드코딩된 아이디와 비밀번호로만 접근 가능합니다
+              관리자 계정은 Vercel Production 환경변수에 등록된 값으로만 접근 가능합니다
             </p>
           </div>
         </div>

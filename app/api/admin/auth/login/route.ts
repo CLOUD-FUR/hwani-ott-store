@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, createAdminSession } from '@/lib/auth';
 import { cookies } from 'next/headers';
 
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 export async function POST(req: NextRequest) {
   try {
