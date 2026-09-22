@@ -42,7 +42,7 @@ export default function ProductsPage() {
       <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/90 backdrop-blur-xl">
         <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between px-6">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-gradient-to-br from-blue-500 to-violet-500 text-lg font-bold text-white shadow-lg shadow-blue-500/20">H</div>
+            <Image src="/OTT.png" alt="화니 OTT" width={42} height={42} className="h-10 w-10 rounded-xl object-contain" priority />
             <span className="text-xl font-bold tracking-tight text-gray-900">화니 OTT</span>
           </Link>
           <nav className="flex items-center gap-7 text-sm font-medium text-gray-600">

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ChevronRight, Play, Star, TrendingUp, Sparkles } from 'lucide-react';
 
 interface Product {
@@ -48,6 +49,19 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-purple-50/20">
+      <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/85 backdrop-blur-xl">
+        <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between px-6">
+          <Link href="/" className="flex items-center gap-2.5">
+            <Image src="/OTT.png" alt="화니 OTT" width={42} height={42} className="h-10 w-10 rounded-xl object-contain" priority />
+            <span className="text-xl font-bold tracking-tight text-gray-900">화니 OTT</span>
+          </Link>
+          <nav className="flex items-center gap-7 text-sm font-medium text-gray-600">
+            <Link href="/products" className="transition hover:text-blue-600">상품</Link>
+            <Link href="/auth/login" className="transition hover:text-blue-600">로그인</Link>
+            <Link href="/auth/login" className="rounded-xl bg-gray-900 px-5 py-2.5 text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-600">시작하기</Link>
+          </nav>
+        </div>
+      </header>
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-purple-600/5 to-pink-600/10" />

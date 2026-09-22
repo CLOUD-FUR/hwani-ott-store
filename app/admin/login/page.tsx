@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -44,9 +45,7 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#38BDF8] to-[#0EA5E9] rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold">H</span>
-            </div>
+            <Image src="/OTT.png" alt="화니 OTT" width={44} height={44} className="h-11 w-11 rounded-xl object-contain" priority />
             <span className="text-2xl font-bold text-white">화니 OTT</span>
           </Link>
 
