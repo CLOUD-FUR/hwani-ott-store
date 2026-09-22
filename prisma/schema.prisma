@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  uniqueId      String   @unique // 5자리 숫자 고유 ID
+  email         String   @unique
+  password      String?  // Google 로그인 시 null
+  name          String?
+  provider      String   @default("email") // "email" | "google"
+  isVerified    Boolean  @default(false)
+  verifyToken   String?
+  isBlacklisted Boolean  @default(false)
+  blacklistReason String?
+  tier          String   @default("USER") // USER, SILVER, GOLD, PLATINUM, DIAMOND
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  orders        Order[]
+  cartItems     CartItem[]
+  logs          Log[]
+
+  @@index([email])
+  @@index([uniqueId])
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  description String   @db.Text
+  images      String[] // 이미지 URL 배열
+  originalPrice Int    // 원가
+  salePrice   Int      // 판매가
+  isVisible   Boolean  @default(true)
+  isDraft     Boolean  @default(false)
+  order       Int      @default(0) // 순서
+  clicks      Int      @default(0) // 클릭 수
+  sales       Int      @default(0) // 판매 수
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  options     ProductOption[]
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+
+  @@index([isVisible])
+  @@index([order])
+}
+
+model ProductOption {
+  id          String   @id @default(uuid())
+  productId   String
+  name        String   // 옵션명 (예: "1개월", "3개월")
+  price       Int      // 추가 가격 (0이면 기본가)
+  stock       Int      @default(999)
+  order       Int      @default(0)
+
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+
+  @@index([productId])
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  userId    String
+  productId String
+  optionId  String?
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  option    ProductOption? @relation(fields: [optionId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, productId, optionId])
+  @@index([userId])
+}
+
+model Order {
+  id             String   @id @default(uuid())
+  orderNumber    String   @unique // 형식: 년월일+회원고유ID+구매번호(3자리)
+  userId         String
+  userEmail      String
+  depositorName  String   // 입금자명
+  totalAmount    Int
+  paymentMethod  String   @default("bank_transfer") // 무통장입금
+  status         String   @default("pending") // pending, approved, cancelled, completed
+  rejectionReason String?
+  accountInfo    Json?    // 계좌 정보 (은행명, 계좌번호, 예금주)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  approvedAt     DateTime?
+  completedAt    DateTime?
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderItems     OrderItem[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([orderNumber])
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  productId String
+  optionId  String?
+  quantity  Int
+  price     Int      // 구매 당시 가격
+  discount  Int      @default(0) // 등급 할인
+
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id])
+  option    ProductOption? @relation(fields: [optionId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+}
+
+model Notice {
+  id          String   @id @default(uuid())
+  title       String
+  content     String   @db.Text
+  image       String?
+  isActive    Boolean  @default(true)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+model Settings {
+  id                String   @id @default("settings")
+  kakaotalkUrl      String?
+  googleClientId    String?
+  googleClientSecret String?
+  bankName          String?
+  bankAccount       String?
+  accountHolder     String?
+  updatedAt         DateTime @updatedAt
+}
+
+model TierConfig {
+  id            String   @id @default(uuid())
+  tier          String   @unique // USER, SILVER, GOLD, PLATINUM, DIAMOND
+  minPurchase   Int      // 최소 누적 구매 금액
+  discountRate  Int      // 할인율 (%)
+  order         Int      @default(0)
+
+  @@index([tier])
+}
+
+model Log {
+  id        String   @id @default(uuid())
+  type      String   // access, signup, purchase, modify, etc.
+  userId    String?
+  email     String?
+  action    String
+  details   Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([type])
+  @@index([userId])
+  @@index([createdAt])
+}
