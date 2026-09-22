@@ -15,15 +15,25 @@ export async function GET(request: Request) {
       );
     }
 
-    // Google OAuth 설정 가져오기
-    const settings = await prisma.settings.findUnique({
-      where: { id: 'settings' },
-    });
+    // Production credentials come from Vercel Environment Variables.
+    // Database settings remain supported when configured later from the admin panel.
+    let googleClientId = process.env.GOOGLE_CLIENT_ID;
+    let googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    let redirectUri = process.env.GOOGLE_REDIRECT_URI || `${process.env.NEXT_PUBLIC_API_URL || 'https://xn--9i1b408a2kja054b.com'}/api/auth/google/callback`;
 
-    if (!settings?.googleClientId || !settings?.googleClientSecret) {
+    try {
+      const settings = await prisma.settings?.findUnique({ where: { id: 'settings' } });
+      googleClientId ||= settings?.googleClientId;
+      googleClientSecret ||= settings?.googleClientSecret;
+      redirectUri = settings?.googleRedirectUri || redirectUri;
+    } catch {
+      // Continue with environment variables when the database is unavailable.
+    }
+
+    if (!googleClientId || !googleClientSecret) {
       return NextResponse.json(
-        { success: false, error: 'Google 로그인이 설정되지 않았습니다.' },
-        { status: 500 }
+        { success: false, error: 'Google OAuth 환경 변수가 없습니다. Vercel Production에 GOOGLE_CLIENT_ID와 GOOGLE_CLIENT_SECRET을 추가하세요.' },
+        { status: 503 }
       );
     }
 
@@ -33,9 +43,9 @@ export async function GET(request: Request) {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         code,
-        client_id: settings.googleClientId,
-        client_secret: settings.googleClientSecret,
-        redirect_uri: settings.googleRedirectUri || `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/google/callback`,
+        client_id: googleClientId,
+        client_secret: googleClientSecret,
+        redirect_uri: redirectUri,
         grant_type: 'authorization_code',
       }),
     });
@@ -128,7 +138,7 @@ export async function GET(request: Request) {
     });
 
     // 클라이언트로 리다이렉트
-    const redirectUrl = new URL('/auth/callback', process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000');
+    const redirectUrl = new URL('/auth/callback', process.env.NEXT_PUBLIC_API_URL || 'https://xn--9i1b408a2kja054b.com');
     redirectUrl.searchParams.set('token', token);
 
     return NextResponse.redirect(redirectUrl);
