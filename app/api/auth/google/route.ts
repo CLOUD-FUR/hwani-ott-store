@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-const productionBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://xn--9i1b408a2kja054b.com';
+const productionBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://www.xn--9i1b408a2kja054b.com';
 
 async function getGoogleSettings() {
   // Production credentials belong in Vercel Environment Variables.

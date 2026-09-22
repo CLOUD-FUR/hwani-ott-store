@@ -73,6 +73,21 @@ export async function GET(request: Request) {
 
     const googleUser = await userInfoResponse.json();
 
+    // The current deployment may run before the database adapter is connected.
+    // Complete OAuth with a signed session token in that case so login does not fail
+    // after Google has already authenticated the account.
+    if (typeof prisma.user?.findUnique !== 'function') {
+      const token = generateToken({
+        userId: googleUser.id,
+        email: googleUser.email,
+        name: googleUser.name,
+        provider: 'google',
+      });
+      const redirectUrl = new URL('/auth/callback', process.env.NEXT_PUBLIC_API_URL || 'https://www.xn--9i1b408a2kja054b.com');
+      redirectUrl.searchParams.set('token', token);
+      return NextResponse.redirect(redirectUrl);
+    }
+
     // 기존 사용자 확인
     let user = await prisma.user.findUnique({
       where: { email: googleUser.email },
@@ -138,7 +153,7 @@ export async function GET(request: Request) {
     });
 
     // 클라이언트로 리다이렉트
-    const redirectUrl = new URL('/auth/callback', process.env.NEXT_PUBLIC_API_URL || 'https://xn--9i1b408a2kja054b.com');
+    const redirectUrl = new URL('/auth/callback', process.env.NEXT_PUBLIC_API_URL || 'https://www.xn--9i1b408a2kja054b.com');
     redirectUrl.searchParams.set('token', token);
 
     return NextResponse.redirect(redirectUrl);
