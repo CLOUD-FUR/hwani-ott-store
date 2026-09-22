@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getAdminUsername } from '@/lib/admin-auth';
 
 export async function GET() {
+  if (!await getAdminUsername()) return NextResponse.json({ success: false, error: '관리자 로그인이 필요합니다.' }, { status: 401 });
   try {
     const tiers = await prisma.tierConfig.findMany({
       orderBy: { discountRate: 'asc' },
@@ -21,6 +23,7 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
+  if (!await getAdminUsername()) return NextResponse.json({ success: false, error: '관리자 로그인이 필요합니다.' }, { status: 401 });
   try {
     const tiers = await request.json();
 
@@ -37,12 +40,14 @@ export async function PUT(request: Request) {
         where: { tier: tier.tier },
         update: {
           discountRate: tier.discountRate,
-          description: tier.description,
+          minPurchase: tier.minPurchase ?? 0,
+          benefits: tier.benefits,
         },
         create: {
           tier: tier.tier,
           discountRate: tier.discountRate,
-          description: tier.description,
+          minPurchase: tier.minPurchase ?? 0,
+          benefits: tier.benefits,
         },
       })
     );

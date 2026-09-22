@@ -1,52 +1,40 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-
-const productionBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://www.xn--9i1b408a2kja054b.com';
+import crypto from 'crypto';
 
 async function getGoogleSettings() {
-  // Production credentials belong in Vercel Environment Variables.
-  // The database fallback keeps admin-configured settings supported later.
   let googleClientId = process.env.GOOGLE_CLIENT_ID;
   let redirectUri = process.env.GOOGLE_REDIRECT_URI;
 
   if (!googleClientId || !redirectUri) {
     try {
-      const settings = await prisma.settings?.findUnique({ where: { id: 'settings' } });
-      googleClientId ||= settings?.googleClientId;
-      redirectUri ||= settings?.googleRedirectUri;
+      const settings = await prisma.settings.findUnique({ where: { id: 'settings' } });
+      googleClientId ||= settings?.googleClientId || undefined;
+      redirectUri ||= settings?.googleRedirectUri || undefined;
     } catch {
-      // The storefront can still report the missing OAuth configuration clearly.
+      // Continue without database settings
     }
   }
 
-  return {
-    googleClientId,
-    redirectUri: redirectUri || `${productionBaseUrl}/api/auth/google/callback`,
-  };
+  return { googleClientId, redirectUri };
 }
 
 export async function GET(request: Request) {
   try {
-    const { googleClientId } = await getGoogleSettings();
-    // Use the public host that handled this request so Vercel's www redirect
-    // and Google's token exchange always use the exact same URI.
-    const requestUrl = new URL(request.url);
-    const forwardedHost = request.headers.get('x-forwarded-host');
-    const forwardedProto = request.headers.get('x-forwarded-proto');
-    const publicOrigin = forwardedHost
-      ? `${forwardedProto || requestUrl.protocol.replace(':', '')}://${forwardedHost.split(',')[0].trim()}`
-      : requestUrl.origin;
-    const redirectUri = new URL('/api/auth/google/callback', publicOrigin).toString();
+    const { googleClientId, redirectUri } = await getGoogleSettings();
 
-    if (!googleClientId) {
+    if (!googleClientId || !redirectUri) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Google Client ID가 아직 설정되지 않았습니다. Vercel Production 환경 변수에 GOOGLE_CLIENT_ID를 추가하세요.',
+          error: 'Google OAuth가 설정되지 않았습니다. 환경 변수를 확인해주세요.',
         },
         { status: 503 }
       );
     }
+
+    // Generate state for CSRF protection
+    const state = crypto.randomBytes(32).toString('hex');
 
     const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     googleAuthUrl.searchParams.set('client_id', googleClientId);
@@ -55,8 +43,20 @@ export async function GET(request: Request) {
     googleAuthUrl.searchParams.set('scope', 'openid email profile');
     googleAuthUrl.searchParams.set('access_type', 'offline');
     googleAuthUrl.searchParams.set('prompt', 'select_account');
+    googleAuthUrl.searchParams.set('state', state);
 
-    return NextResponse.redirect(googleAuthUrl);
+    const response = NextResponse.redirect(googleAuthUrl);
+
+    // Store state in cookie for validation in callback
+    response.cookies.set('oauth_state', state, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 10 * 60, // 10 minutes
+      path: '/',
+    });
+
+    return response;
   } catch (error) {
     console.error('Google auth URL error:', error);
     return NextResponse.json(

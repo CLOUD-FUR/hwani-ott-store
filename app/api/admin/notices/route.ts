@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createLog } from '@/lib/logger';
+import { getAdminUsername } from '@/lib/admin-auth';
 
 export async function GET() {
+  if (!await getAdminUsername()) return NextResponse.json({ success: false, error: '관리자 로그인이 필요합니다.' }, { status: 401 });
   try {
     const notices = await prisma.notice.findMany({
       orderBy: { createdAt: 'desc' },
@@ -22,6 +24,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (!await getAdminUsername()) return NextResponse.json({ success: false, error: '관리자 로그인이 필요합니다.' }, { status: 401 });
   try {
     const { title, content, link, isActive, startDate, endDate } = await request.json();
 
@@ -45,7 +48,7 @@ export async function POST(request: Request) {
 
     // 로그 기록
     await createLog({
-      type: 'admin',
+      type: 'ADMIN',
       action: '공지사항 생성',
       details: {
         noticeId: notice.id,

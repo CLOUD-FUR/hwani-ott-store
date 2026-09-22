@@ -9,10 +9,12 @@ interface Product {
   id: string;
   name: string;
   description: string;
-  price: number;
-  image: string | null;
+  salePrice: number;
+  images: string[];
+  price?: number;
+  image?: string | null;
   isAvailable: boolean;
-  options?: { name: string; price: number }[];
+  options?: { id: string; name: string; price: number }[];
 }
 
 export default function ProductDetailPage() {
@@ -27,9 +29,10 @@ export default function ProductDetailPage() {
     fetch(`/api/products/${params.id}`)
       .then(res => res.json())
       .then(data => {
-        setProduct(data.product);
-        if (data.product?.options && data.product.options.length > 0) {
-          setSelectedOption(data.product.options[0].name);
+        const loaded = data.product || data.data;
+        setProduct(loaded);
+        if (loaded?.options && loaded.options.length > 0) {
+          setSelectedOption(loaded.options[0].id);
         }
       })
       .catch(console.error)
@@ -38,18 +41,21 @@ export default function ProductDetailPage() {
 
   const getTotalPrice = () => {
     if (!product) return 0;
-    let basePrice = product.price;
+    let basePrice = product.salePrice ?? product.price ?? 0;
     if (selectedOption && product.options) {
-      const option = product.options.find(o => o.name === selectedOption);
+      const option = product.options.find(o => o.id === selectedOption);
       if (option) basePrice += option.price;
     }
     return basePrice * quantity;
   };
 
-  const handlePurchase = () => {
-    // TODO: 구매 로직 구현
-    alert('구매 기능은 로그인 후 사용 가능합니다.');
-    router.push('/auth/login');
+  const handlePurchase = async () => {
+    if (!product) return;
+    const option = product.options?.find((item) => item.id === selectedOption);
+    const response = await fetch('/api/cart', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productId: product.id, optionId: option?.id || null, quantity }) });
+    if (response.status === 401) { router.push(`/auth/login?redirect=/products/${product.id}`); return; }
+    if (!response.ok) { const data = await response.json().catch(() => ({})); alert(data.error || '장바구니에 담지 못했습니다.'); return; }
+    router.push('/cart');
   };
 
   if (loading) {
@@ -123,9 +129,9 @@ export default function ProductDetailPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             {/* Product Image */}
             <div className="relative aspect-square bg-slate-800 rounded-xl overflow-hidden">
-              {product.image ? (
+              {(product.images?.[0] || product.image) ? (
                 <Image
-                  src={product.image}
+                  src={product.images?.[0] || product.image || ''}
                   alt={product.name}
                   fill
                   className="object-cover"
@@ -161,7 +167,7 @@ export default function ProductDetailPage() {
                     {product.options.map((option) => (
                       <button
                         key={option.name}
-                        onClick={() => setSelectedOption(option.name)}
+                        onClick={() => setSelectedOption(option.id)}
                         className={`p-4 rounded-lg border-2 transition-all text-left ${
                           selectedOption === option.name
                             ? 'border-[#38BDF8] bg-[#38BDF8]/10'

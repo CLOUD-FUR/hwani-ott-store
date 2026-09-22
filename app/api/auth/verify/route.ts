@@ -5,10 +5,12 @@ import { createLog } from '@/lib/logger';
 export async function POST(request: Request) {
   try {
     const { email, code } = await request.json();
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    const userAgent = request.headers.get('user-agent') || undefined;
 
     if (!email || !code) {
       return NextResponse.json(
-        { success: false, error: '이메일과 인증번호를 입력해주세요.' },
+        { success: false, error: '이메일과 인증 코드를 입력해주세요.' },
         { status: 400 }
       );
     }
@@ -31,28 +33,43 @@ export async function POST(request: Request) {
       );
     }
 
-    if (user.verifyToken !== code) {
+    if (!user.verifyToken || !user.verifyExpires) {
       return NextResponse.json(
-        { success: false, error: '인증번호가 일치하지 않습니다.' },
+        { success: false, error: '인증 코드가 존재하지 않습니다.' },
         { status: 400 }
       );
     }
 
-    // 인증 완료
+    if (user.verifyExpires < new Date()) {
+      return NextResponse.json(
+        { success: false, error: '인증 코드가 만료되었습니다. 다시 요청해주세요.' },
+        { status: 400 }
+      );
+    }
+
+    if (user.verifyToken !== code) {
+      return NextResponse.json(
+        { success: false, error: '인증 코드가 일치하지 않습니다.' },
+        { status: 400 }
+      );
+    }
+
     await prisma.user.update({
-      where: { email },
+      where: { id: user.id },
       data: {
         isVerified: true,
         verifyToken: null,
+        verifyExpires: null,
       },
     });
 
-    // 로그 기록
     await createLog({
-      type: 'verify',
+      type: 'SIGNUP',
       userId: user.id,
       email: user.email,
       action: '이메일 인증 완료',
+      ipAddress: ip,
+      userAgent,
     });
 
     return NextResponse.json({
@@ -60,7 +77,7 @@ export async function POST(request: Request) {
       message: '이메일 인증이 완료되었습니다.',
     });
   } catch (error) {
-    console.error('Verify error:', error);
+    console.error('Verification error:', error);
     return NextResponse.json(
       { success: false, error: '인증 중 오류가 발생했습니다.' },
       { status: 500 }

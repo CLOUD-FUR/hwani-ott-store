@@ -1,12 +1,20 @@
 import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    // 데이터베이스 연결 전까지 빈 배열 반환
-    return NextResponse.json({
-      success: true,
-      notices: [],
+    const now = new Date();
+    const notices = await prisma.notice.findMany({
+      where: {
+        isActive: true,
+        AND: [
+          { OR: [{ startDate: null }, { startDate: { lte: now } }] },
+          { OR: [{ endDate: null }, { endDate: { gte: now } }] },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
     });
+    return NextResponse.json({ success: true, notices, data: notices });
   } catch (error) {
     console.error('Notices fetch error:', error);
     return NextResponse.json(

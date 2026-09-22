@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getAdminUsername } from '@/lib/admin-auth';
 
 export async function GET() {
+  if (!await getAdminUsername()) return NextResponse.json({ success: false, error: '관리자 로그인이 필요합니다.' }, { status: 401 });
   try {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -11,7 +13,7 @@ export async function GET() {
     // 이번 달 매출
     const currentMonthRevenue = await prisma.order.aggregate({
       where: {
-        status: 'completed',
+        status: 'COMPLETED',
         createdAt: { gte: startOfMonth },
       },
       _sum: { totalAmount: true },
@@ -20,7 +22,7 @@ export async function GET() {
     // 지난 달 매출
     const lastMonthRevenue = await prisma.order.aggregate({
       where: {
-        status: 'completed',
+        status: 'COMPLETED',
         createdAt: { gte: startOfLastMonth, lte: endOfLastMonth },
       },
       _sum: { totalAmount: true },
@@ -28,7 +30,7 @@ export async function GET() {
 
     // 총 매출
     const totalRevenue = await prisma.order.aggregate({
-      where: { status: 'completed' },
+      where: { status: 'COMPLETED' },
       _sum: { totalAmount: true },
     });
 
@@ -42,7 +44,7 @@ export async function GET() {
 
     // 대기 중인 주문 수
     const pendingOrders = await prisma.order.count({
-      where: { status: 'pending' },
+      where: { status: 'PENDING' },
     });
 
     // 최근 7일 매출 그래프
@@ -51,7 +53,7 @@ export async function GET() {
 
     const recentOrders = await prisma.order.findMany({
       where: {
-        status: 'completed',
+        status: 'COMPLETED',
         createdAt: { gte: sevenDaysAgo },
       },
       select: {

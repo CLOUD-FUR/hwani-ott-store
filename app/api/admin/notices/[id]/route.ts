@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createLog } from '@/lib/logger';
+import { getAdminUsername } from '@/lib/admin-auth';
 
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!await getAdminUsername()) return NextResponse.json({ success: false, error: '관리자 로그인이 필요합니다.' }, { status: 401 });
   try {
     const { id } = await params;
     const { title, content, link, isActive, startDate, endDate } = await request.json();
@@ -35,7 +37,7 @@ export async function PUT(
 
     // 로그 기록
     await createLog({
-      type: 'admin',
+      type: 'ADMIN',
       action: '공지사항 수정',
       details: {
         noticeId: notice.id,
@@ -61,6 +63,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!await getAdminUsername()) return NextResponse.json({ success: false, error: '관리자 로그인이 필요합니다.' }, { status: 401 });
   try {
     const { id } = await params;
     const notice = await prisma.notice.findUnique({
@@ -80,7 +83,7 @@ export async function DELETE(
 
     // 로그 기록
     await createLog({
-      type: 'admin',
+      type: 'ADMIN',
       action: '공지사항 삭제',
       details: {
         noticeId: notice.id,

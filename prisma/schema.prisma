@@ -8,26 +8,38 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(uuid())
-  uniqueId      String   @unique // 5자리 숫자 고유 ID
-  email         String   @unique
-  password      String?  // Google 로그인 시 null
-  name          String?
-  provider      String   @default("email") // "email" | "google"
-  isVerified    Boolean  @default(false)
-  verifyToken   String?
-  isBlacklisted Boolean  @default(false)
+  id              String   @id @default(uuid())
+  uniqueId        String   @unique // 5자리 숫자 고유 ID (10000-99999)
+  email           String   @unique
+  password        String?  // Google 로그인 시 null
+  name            String?
+  googleId        String?  @unique
+  provider        String   @default("email") // "email" | "google"
+  isVerified      Boolean  @default(false)
+  verifyToken     String?
+  verifyExpires   DateTime?
+  isBlacklisted   Boolean  @default(false)
   blacklistReason String?
-  tier          String   @default("USER") // USER, SILVER, GOLD, PLATINUM, DIAMOND
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  tier            Role     @default(USER)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  orders        Order[]
-  cartItems     CartItem[]
-  logs          Log[]
+  orders          Order[]
+  cartItems       CartItem[]
+  logs            Log[]
+  sessions        Session[]
 
   @@index([email])
   @@index([uniqueId])
+  @@index([googleId])
+}
+
+enum Role {
+  USER
+  SILVER
+  GOLD
+  PLATINUM
+  DIAMOND
 }
 
 model Product {
@@ -85,27 +97,38 @@ model CartItem {
 }
 
 model Order {
-  id             String   @id @default(uuid())
-  orderNumber    String   @unique // 형식: 년월일+회원고유ID+구매번호(3자리)
-  userId         String
-  userEmail      String
-  depositorName  String   // 입금자명
-  totalAmount    Int
-  paymentMethod  String   @default("bank_transfer") // 무통장입금
-  status         String   @default("pending") // pending, approved, cancelled, completed
+  id              String      @id @default(uuid())
+  orderNumber     String      @unique // 형식: 년월일+회원고유ID+구매번호(3자리)
+  userId          String
+  userEmail       String
+  depositorName   String      // 입금자명
+  totalAmount     Int
+  paymentMethod   String      @default("bank_transfer") // 무통장입금
+  status          OrderStatus @default(PENDING)
   rejectionReason String?
-  accountInfo    Json?    // 계좌 정보 (은행명, 계좌번호, 예금주)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  approvedAt     DateTime?
-  completedAt    DateTime?
+  deliveryInfo    String?     @db.Text // 관리자가 입력하는 전달 내용 (수동)
+  deliveryData    Json?       // 미래 자동 전달용 구조화 데이터
+  accountInfo     Json?       // 계좌 정보 스냅샷 (은행명, 계좌번호, 예금주)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  approvedAt      DateTime?
+  completedAt     DateTime?
 
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orderItems     OrderItem[]
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderItems      OrderItem[]
 
   @@index([userId])
   @@index([status])
   @@index([orderNumber])
+  @@index([createdAt])
+}
+
+enum OrderStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+  COMPLETED
 }
 
 model OrderItem {
@@ -129,6 +152,7 @@ model Notice {
   title       String
   content     String   @db.Text
   image       String?
+  link        String?
   isActive    Boolean  @default(true)
   startDate   DateTime?
   endDate     DateTime?
@@ -139,21 +163,29 @@ model Notice {
 }
 
 model Settings {
-  id                String   @id @default("settings")
-  kakaotalkUrl      String?
-  googleClientId    String?
-  googleClientSecret String?
-  bankName          String?
-  bankAccount       String?
-  accountHolder     String?
-  updatedAt         DateTime @updatedAt
+  id                  String   @id @default("settings")
+  siteName            String   @default("화니 OTT")
+  siteDescription     String?  @db.Text
+  kakaotalkUrl        String?
+  channelTalkUrl      String?
+  googleClientId      String?
+  googleRedirectUri   String?
+  bankName            String?
+  bankAccount         String?
+  accountHolder       String?
+  smtpHost            String?
+  smtpPort            Int?
+  smtpUser            String?
+  // smtpPassword는 환경변수에서만 읽음 (DB 저장 금지)
+  updatedAt           DateTime @updatedAt
 }
 
 model TierConfig {
   id            String   @id @default(uuid())
-  tier          String   @unique // USER, SILVER, GOLD, PLATINUM, DIAMOND
+  tier          Role     @unique
   minPurchase   Int      // 최소 누적 구매 금액
   discountRate  Int      // 할인율 (%)
+  benefits      String?  @db.Text // 등급 혜택 설명
   order         Int      @default(0)
 
   @@index([tier])
@@ -161,7 +193,7 @@ model TierConfig {
 
 model Log {
   id        String   @id @default(uuid())
-  type      String   // access, signup, purchase, modify, etc.
+  type      LogType
   userId    String?
   email     String?
   action    String
@@ -175,4 +207,52 @@ model Log {
   @@index([type])
   @@index([userId])
   @@index([createdAt])
+}
+
+enum LogType {
+  ACCESS
+  SIGNUP
+  LOGIN
+  ADMIN
+  ORDER
+  PAYMENT
+  PRODUCT
+  USER
+  MODIFY
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+model AdminSession {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  username  String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([expiresAt])
+}
+
+model RateLimit {
+  id        String   @id @default(uuid())
+  key       String   @unique // userId:action or ip:action
+  count     Int      @default(1)
+  resetAt   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([key])
+  @@index([resetAt])
 }

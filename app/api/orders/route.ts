@@ -1,227 +1,162 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
-import { verifyToken, generateOrderNumber } from '@/lib/auth';
+import { verifyUserSession, generateOrderNumber } from '@/lib/auth';
 import { sendOrderConfirmationEmail } from '@/lib/email';
 import { createLog } from '@/lib/logger';
+import { LogType, Prisma } from '@prisma/client';
+
+type OrderRequestItem = {
+  productId: string;
+  optionId?: string | null;
+  quantity: number;
+};
 
 export async function POST(request: Request) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: '인증이 필요합니다.' },
-        { status: 401 }
-      );
+    const sessionToken = (await cookies()).get('session')?.value;
+    if (!sessionToken) {
+      return NextResponse.json({ success: false, error: '로그인이 필요합니다.' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: '유효하지 않은 토큰입니다.' },
-        { status: 401 }
-      );
+    const userId = await verifyUserSession(sessionToken);
+    if (!userId) {
+      return NextResponse.json({ success: false, error: '세션이 만료되었습니다.' }, { status: 401 });
     }
 
-    const { items, depositorName } = await request.json();
-
-    if (!items || items.length === 0) {
-      return NextResponse.json(
-        { success: false, error: '주문 상품이 없습니다.' },
-        { status: 400 }
-      );
+    const body = await request.json() as { items?: unknown; depositorName?: unknown };
+    const items = body.items;
+    const depositorName = typeof body.depositorName === 'string' ? body.depositorName.trim() : '';
+    if (!Array.isArray(items) || items.length === 0 || items.length > 50) {
+      return NextResponse.json({ success: false, error: '주문 상품을 확인해주세요.' }, { status: 400 });
+    }
+    if (!depositorName || depositorName.length > 100) {
+      return NextResponse.json({ success: false, error: '입금자명을 입력해주세요.' }, { status: 400 });
     }
 
-    if (!depositorName) {
-      return NextResponse.json(
-        { success: false, error: '입금자명을 입력해주세요.' },
-        { status: 400 }
-      );
-    }
-
-    // 사용자 정보 가져오기
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: '사용자를 찾을 수 없습니다.' },
-        { status: 404 }
-      );
-    }
-
-    // 24시간 내 주문 개수 확인
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const recentOrdersCount = await prisma.order.count({
-      where: {
-        userId: decoded.userId,
-        createdAt: { gte: oneDayAgo },
-      },
-    });
-
-    if (recentOrdersCount >= 10) {
-      return NextResponse.json(
-        { success: false, error: '24시간 내 최대 10개의 주문만 가능합니다.' },
-        { status: 429 }
-      );
-    }
-
-    // 등급별 할인율 가져오기
-    const tierConfig = await prisma.tierConfig.findUnique({
-      where: { tier: user.tier },
-    });
-
-    const discountRate = tierConfig?.discountRate || 0;
-
-    // 총 금액 계산
-    let totalAmount = 0;
-    const orderItemsData = [];
-
+    const normalizedItems: OrderRequestItem[] = [];
     for (const item of items) {
-      const product = await prisma.product.findUnique({
-        where: { id: item.productId },
-        include: { options: true },
-      });
-
-      if (!product) {
-        return NextResponse.json(
-          { success: false, error: `상품을 찾을 수 없습니다: ${item.productId}` },
-          { status: 404 }
-        );
+      if (!item || typeof item !== 'object') {
+        return NextResponse.json({ success: false, error: '주문 상품 형식이 올바르지 않습니다.' }, { status: 400 });
       }
-
-      let price = product.salePrice;
-
-      if (item.optionId) {
-        const option = product.options.find((opt: { id: string; price: number }) => opt.id === item.optionId);
-        if (option) {
-          price += option.price;
-        }
+      const candidate = item as Record<string, unknown>;
+      const productId = typeof candidate.productId === 'string' ? candidate.productId : '';
+      const optionId = candidate.optionId === null || candidate.optionId === undefined ? null : typeof candidate.optionId === 'string' ? candidate.optionId : '';
+      const quantity = Number(candidate.quantity);
+      if (!productId || optionId === '' || !Number.isSafeInteger(quantity) || quantity < 1 || quantity > 999) {
+        return NextResponse.json({ success: false, error: '주문 수량 또는 옵션을 확인해주세요.' }, { status: 400 });
       }
-
-      const discount = Math.floor(price * discountRate / 100);
-      const finalPrice = price - discount;
-
-      totalAmount += finalPrice * item.quantity;
-
-      orderItemsData.push({
-        productId: item.productId,
-        optionId: item.optionId || null,
-        quantity: item.quantity,
-        price: finalPrice,
-        discount,
-      });
+      normalizedItems.push({ productId, optionId: optionId ?? null, quantity });
     }
 
-    // 주문 번호 생성
-    const userOrdersCount = await prisma.order.count({
-      where: { userId: decoded.userId },
-    });
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const result = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({ where: { id: userId } });
+      if (!user) throw new Error('USER_NOT_FOUND');
+      if (user.isBlacklisted) throw new Error('BLACKLISTED');
 
-    const orderNumber = generateOrderNumber(user.uniqueId, userOrdersCount);
+      const recentOrdersCount = await tx.order.count({ where: { userId, createdAt: { gte: oneDayAgo } } });
+      if (recentOrdersCount >= 10) throw new Error('ORDER_LIMIT');
 
-    // 계좌 정보 가져오기
-    const settings = await prisma.settings.findUnique({
-      where: { id: 'settings' },
-    });
+      const tierConfig = await tx.tierConfig.findUnique({ where: { tier: user.tier } });
+      const discountRate = tierConfig?.discountRate || 0;
+      let totalAmount = 0;
+      const orderItemsData: Array<{ productId: string; optionId: string | null; quantity: number; price: number; discount: number }> = [];
 
-    const accountInfo = {
-      bankName: settings?.bankName || '미설정',
-      bankAccount: settings?.bankAccount || '미설정',
-      accountHolder: settings?.accountHolder || '미설정',
-    };
+      for (const item of normalizedItems) {
+        const product = await tx.product.findUnique({ where: { id: item.productId }, include: { options: true } });
+        if (!product || !product.isVisible || product.isDraft) throw new Error('PRODUCT_NOT_AVAILABLE');
+        const option = item.optionId ? product.options.find((candidate) => candidate.id === item.optionId) : null;
+        if (item.optionId && !option) throw new Error('OPTION_NOT_FOUND');
+        if (option && option.stock < item.quantity) throw new Error('OUT_OF_STOCK');
+        const basePrice = product.salePrice + (option?.price || 0);
+        const discount = Math.floor(basePrice * discountRate / 100);
+        const finalPrice = basePrice - discount;
+        totalAmount += finalPrice * item.quantity;
+        orderItemsData.push({ productId: item.productId, optionId: item.optionId ?? null, quantity: item.quantity, price: finalPrice, discount });
+      }
 
-    // 주문 생성
-    const order = await prisma.order.create({
-      data: {
-        orderNumber,
-        userId: decoded.userId,
-        userEmail: user.email,
-        depositorName,
-        totalAmount,
-        accountInfo,
-        orderItems: {
-          create: orderItemsData,
+      const userOrdersCount = await tx.order.count({ where: { userId } });
+      const orderNumber = generateOrderNumber(user.uniqueId, userOrdersCount);
+      const settings = await tx.settings.findUnique({ where: { id: 'settings' } });
+      const accountInfo = {
+        bankName: settings?.bankName || '미설정',
+        bankAccount: settings?.bankAccount || '미설정',
+        accountHolder: settings?.accountHolder || '미설정',
+      };
+      const order = await tx.order.create({
+        data: {
+          orderNumber, userId, userEmail: user.email, depositorName, totalAmount, accountInfo,
+          orderItems: { create: orderItemsData },
         },
-      },
-      include: {
-        orderItems: {
-          include: {
-            product: true,
-            option: true,
-          },
-        },
-      },
-    });
+        include: { orderItems: { include: { product: true, option: true } } },
+      });
 
-    // 장바구니 비우기
-    await prisma.cartItem.deleteMany({
-      where: {
-        userId: decoded.userId,
-        productId: { in: items.map((item: any) => item.productId) },
-      },
-    });
+      // Delete only the exact cart lines submitted for this order.
+      for (const item of normalizedItems) {
+        await tx.cartItem.deleteMany({ where: { userId, productId: item.productId, optionId: item.optionId } });
+      }
+      return { order, user, orderNumber, totalAmount, orderItemsData, accountInfo, discountRate };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
-    // 주문 확인 이메일 발송
     try {
-      await sendOrderConfirmationEmail(user.email, orderNumber, { totalAmount, items: orderItemsData, createdAt: new Date() });
+      await sendOrderConfirmationEmail(result.user.email, result.orderNumber, {
+        totalAmount: result.totalAmount,
+        items: result.orderItemsData,
+        accountInfo: result.accountInfo,
+      });
     } catch (emailError) {
       console.error('Email sending failed:', emailError);
     }
-
-    // 로그 기록
     await createLog({
-      type: 'purchase',
-      userId: user.id,
-      email: user.email,
+      type: LogType.ORDER,
+      userId: result.user.id,
+      email: result.user.email,
       action: '주문 생성',
-      details: {
-        orderNumber,
-        totalAmount,
-        itemCount: items.length,
-        tier: user.tier,
-        discountRate,
-      },
+      details: { orderNumber: result.orderNumber, totalAmount: result.totalAmount, itemCount: normalizedItems.length, tier: result.user.tier, discountRate: result.discountRate },
     });
-
-    return NextResponse.json({
-      success: true,
-      message: '주문이 접수되었습니다.',
-      data: order,
-    });
+    return NextResponse.json({ success: true, message: '주문이 접수되었습니다.', data: result.order });
   } catch (error) {
+    const errorCode = error instanceof Error ? error.message : '';
+    const messages: Record<string, [string, number]> = {
+      USER_NOT_FOUND: ['사용자를 찾을 수 없습니다.', 404],
+      BLACKLISTED: ['차단된 계정입니다.', 403],
+      ORDER_LIMIT: ['24시간 내 최대 10개의 주문만 가능합니다.', 429],
+      PRODUCT_NOT_AVAILABLE: ['판매 중인 상품만 주문할 수 있습니다.', 400],
+      OPTION_NOT_FOUND: ['상품 옵션을 찾을 수 없습니다.', 400],
+      OUT_OF_STOCK: ['상품 재고가 부족합니다.', 409],
+    };
+    if (messages[errorCode]) {
+      const [message, status] = messages[errorCode];
+      return NextResponse.json({ success: false, error: message }, { status });
+    }
     console.error('Order creation error:', error);
-    return NextResponse.json(
-      { success: false, error: '주문 생성 중 오류가 발생했습니다.' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: '주문 생성 중 오류가 발생했습니다.' }, { status: 500 });
   }
 }
 
 export async function GET(request: Request) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
+    const cookieStore = await cookies();
+    const sessionToken = cookieStore.get('session')?.value;
 
-    if (!token) {
+    if (!sessionToken) {
       return NextResponse.json(
-        { success: false, error: '인증이 필요합니다.' },
+        { success: false, error: '로그인이 필요합니다.' },
         { status: 401 }
       );
     }
 
-    const decoded = verifyToken(token);
-    if (!decoded) {
+    const userId = await verifyUserSession(sessionToken);
+    if (!userId) {
       return NextResponse.json(
-        { success: false, error: '유효하지 않은 토큰입니다.' },
+        { success: false, error: '세션이 만료되었습니다.' },
         { status: 401 }
       );
     }
 
     const orders = await prisma.order.findMany({
-      where: { userId: decoded.userId },
+      where: { userId: userId },
       include: {
         orderItems: {
           include: {

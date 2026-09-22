@@ -7,9 +7,16 @@ import Image from 'next/image';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,13 +27,13 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify(formData),
       });
 
       const data = await res.json();
 
       if (res.ok) {
-        alert('로그인 링크가 이메일로 전송되었습니다. 이메일을 확인해주세요.');
+        router.push('/');
       } else {
         setError(data.error || '로그인에 실패했습니다.');
       }
@@ -43,7 +50,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      {/* Header */}
       <header className="border-b border-gray-100 bg-white/90 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -55,7 +61,6 @@ export default function LoginPage() {
         </div>
       </header>
 
-      {/* Login Form */}
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
@@ -64,7 +69,6 @@ export default function LoginPage() {
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-xl shadow-gray-200/50">
-            {/* Google Login */}
             <button
               onClick={handleGoogleLogin}
               className="w-full flex items-center justify-center gap-3 px-4 py-3.5 bg-white hover:bg-gray-50 text-gray-800 rounded-xl font-medium transition-colors mb-6 border border-gray-300 shadow-sm"
@@ -79,32 +83,48 @@ export default function LoginPage() {
 
             <div className="relative mb-6">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-700"></div>
+                <div className="w-full border-t border-gray-300"></div>
               </div>
               <div className="relative flex justify-center text-sm">
                 <span className="px-2 bg-white text-gray-400">또는</span>
               </div>
             </div>
 
-            {/* Email Login */}
             <form onSubmit={handleEmailLogin}>
-              <div className="mb-6">
+              <div className="mb-4">
                 <label htmlFor="email" className="block text-gray-800 font-medium mb-2">
                   이메일
                 </label>
                 <input
                   id="email"
+                  name="email"
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={formData.email}
+                  onChange={handleChange}
                   placeholder="your@email.com"
                   required
                   className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 transition-colors"
                 />
               </div>
 
+              <div className="mb-6">
+                <label htmlFor="password" className="block text-gray-800 font-medium mb-2">
+                  비밀번호
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="비밀번호를 입력하세요"
+                  required
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 transition-colors"
+                />
+              </div>
+
               {error && (
-                <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm">
+                <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-600 text-sm">
                   {error}
                 </div>
               )}
@@ -112,9 +132,9 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full px-4 py-3 bg-[#38BDF8] hover:bg-[#0EA5E9] text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-3 bg-[#38BDF8] hover:bg-[#0EA5E9] text-white rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? '처리 중...' : '이메일로 로그인'}
+                {loading ? '처리 중...' : '로그인'}
               </button>
             </form>
 
@@ -129,7 +149,6 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Footer */}
       <footer className="border-t border-gray-100 bg-white py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <p className="text-gray-400 text-sm">

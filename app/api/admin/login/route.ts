@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { createAdminSession } from '@/lib/auth';
 
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
@@ -22,6 +23,7 @@ export async function POST(request: Request) {
     }
 
     // 로그인 성공
+    const sessionToken = await createAdminSession(username);
     const response = NextResponse.json({
       success: true,
       message: '관리자 로그인 성공',
@@ -32,7 +34,7 @@ export async function POST(request: Request) {
     });
 
     // 쿠키에 관리자 세션 저장
-    response.cookies.set('admin_session', 'true', {
+    response.cookies.set('admin_session', sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

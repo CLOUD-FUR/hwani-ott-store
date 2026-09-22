@@ -32,6 +32,7 @@ export async function GET(
     return NextResponse.json({
       success: true,
       data: product,
+      product,
     });
   } catch (error) {
     console.error('Product fetch error:', error);
@@ -68,7 +69,7 @@ export async function PUT(
         isDraft: data.isDraft,
         order: data.order,
         options: {
-          create: data.options?.map((opt: any, idx: number) => ({
+          create: data.options?.map((opt: { name: string; price: number; stock?: number }, idx: number) => ({
             name: opt.name,
             price: opt.price,
             stock: opt.stock ?? 999,
@@ -85,6 +86,7 @@ export async function PUT(
       success: true,
       message: '상품이 수정되었습니다.',
       data: product,
+      product,
     });
   } catch (error) {
     console.error('Product update error:', error);

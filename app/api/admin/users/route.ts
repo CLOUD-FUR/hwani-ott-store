@@ -1,7 +1,10 @@
+import { Prisma, Role } from '@prisma/client';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getAdminUsername } from '@/lib/admin-auth';
 
 export async function GET(request: Request) {
+  if (!await getAdminUsername()) return NextResponse.json({ success: false, error: '관리자 로그인이 필요합니다.' }, { status: 401 });
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -12,7 +15,7 @@ export async function GET(request: Request) {
 
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const where: Prisma.UserWhereInput = {};
 
     if (search) {
       where.OR = [
@@ -23,7 +26,7 @@ export async function GET(request: Request) {
     }
 
     if (tier) {
-      where.tier = tier;
+      if (Object.values(Role).includes(tier as Role)) where.tier = tier as Role;
     }
 
     if (isBlacklisted !== null && isBlacklisted !== undefined) {

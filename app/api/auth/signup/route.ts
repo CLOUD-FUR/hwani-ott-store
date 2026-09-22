@@ -1,15 +1,25 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { generateToken, generateUniqueId, generateVerifyCode } from '@/lib/auth';
+import { generateUniqueId, generateVerifyCode, checkRateLimit } from '@/lib/auth';
 import { sendVerificationEmail } from '@/lib/email';
 import { createLog } from '@/lib/logger';
 
 export async function POST(request: Request) {
   try {
     const { email, password, name } = await request.json();
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    const userAgent = request.headers.get('user-agent') || undefined;
 
-    // 유효성 검사
+    // Rate limiting: 5 attempts per IP per hour
+    const canProceed = await checkRateLimit(`signup:${ip}`, 5, 60 * 60 * 1000);
+    if (!canProceed) {
+      return NextResponse.json(
+        { success: false, error: '너무 많은 시도가 있었습니다. 나중에 다시 시도해주세요.' },
+        { status: 429 }
+      );
+    }
+
     if (!email || !password || !name) {
       return NextResponse.json(
         { success: false, error: '모든 필드를 입력해주세요.' },
@@ -17,7 +27,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // 이메일 중복 확인
+    if (password.length < 8) {
+      return NextResponse.json(
+        { success: false, error: '비밀번호는 최소 8자 이상이어야 합니다.' },
+        { status: 400 }
+      );
+    }
+
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
@@ -29,10 +45,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // 비밀번호 해싱
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 고유 ID 생성 (5자리 숫자)
     let uniqueId = generateUniqueId();
     let isUnique = false;
 
@@ -48,10 +62,9 @@ export async function POST(request: Request) {
       }
     }
 
-    // 인증 코드 생성
     const verifyToken = generateVerifyCode();
+    const verifyExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // 사용자 생성
     const user = await prisma.user.create({
       data: {
         email,
@@ -59,25 +72,25 @@ export async function POST(request: Request) {
         name,
         uniqueId,
         verifyToken,
+        verifyExpires,
         provider: 'email',
       },
     });
 
-    // 인증 이메일 발송
     try {
       await sendVerificationEmail(email, verifyToken);
     } catch (emailError) {
       console.error('Email sending failed:', emailError);
-      // 이메일 발송 실패해도 회원가입은 진행
     }
 
-    // 로그 기록
     await createLog({
-      type: 'signup',
+      type: 'SIGNUP',
       userId: user.id,
       email: user.email,
       action: '이메일 회원가입',
       details: { uniqueId, provider: 'email' },
+      ipAddress: ip,
+      userAgent,
     });
 
     return NextResponse.json({

@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    // 데이터베이스 연결 전까지 빈 배열 반환
-    return NextResponse.json({
-      success: true,
-      products: [],
+    const products = await prisma.product.findMany({
+      where: { isVisible: true, isDraft: false },
+      include: { options: { orderBy: { order: 'asc' } } },
+      orderBy: { order: 'asc' },
     });
+
+    return NextResponse.json({ success: true, products, data: products });
   } catch (error) {
     console.error('Products fetch error:', error);
     return NextResponse.json(

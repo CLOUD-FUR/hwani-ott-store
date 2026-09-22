@@ -1,52 +1,52 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
-import { generateToken } from '@/lib/auth';
+import { generateUniqueId, createUserSession } from '@/lib/auth';
 import { createLog } from '@/lib/logger';
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get('code');
+    const state = searchParams.get('state');
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    const userAgent = request.headers.get('user-agent') || undefined;
+
+    // Get stored state from the HttpOnly cookie.
+    const cookieStore = await cookies();
+    const storedState = cookieStore.get('oauth_state')?.value;
 
     if (!code) {
-      return NextResponse.json(
-        { success: false, error: '인증 코드가 없습니다.' },
-        { status: 400 }
-      );
+      const redirectUrl = new URL('/auth/login', request.url);
+      redirectUrl.searchParams.set('error', '인증 코드가 없습니다.');
+      return NextResponse.redirect(redirectUrl);
     }
 
-    // Production credentials come from Vercel Environment Variables.
-    // Database settings remain supported when configured later from the admin panel.
+    // Validate state to prevent CSRF
+    if (!state || !storedState || state !== storedState) {
+      const redirectUrl = new URL('/auth/login', request.url);
+      redirectUrl.searchParams.set('error', '잘못된 인증 요청입니다.');
+      return NextResponse.redirect(redirectUrl);
+    }
+
     let googleClientId = process.env.GOOGLE_CLIENT_ID;
-    let googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    // Always use the public host that received this callback. If Vercel redirects
-    // apex to www, using a stale env redirect URI causes Google's token exchange
-    // to fail with redirect_uri_mismatch.
-    const requestUrl = new URL(request.url);
-    const forwardedHost = request.headers.get('x-forwarded-host');
-    const forwardedProto = request.headers.get('x-forwarded-proto');
-    const publicOrigin = forwardedHost
-      ? `${forwardedProto || requestUrl.protocol.replace(':', '')}://${forwardedHost.split(',')[0].trim()}`
-      : requestUrl.origin;
-    let redirectUri = new URL('/api/auth/google/callback', publicOrigin).toString();
+    const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    let redirectUri = process.env.GOOGLE_REDIRECT_URI;
 
     try {
-      const settings = await prisma.settings?.findUnique({ where: { id: 'settings' } });
-      googleClientId ||= settings?.googleClientId;
-      googleClientSecret ||= settings?.googleClientSecret;
-      redirectUri = settings?.googleRedirectUri || redirectUri;
+      const settings = await prisma.settings.findUnique({ where: { id: 'settings' } });
+      googleClientId ||= settings?.googleClientId || undefined;
+      redirectUri ||= settings?.googleRedirectUri || undefined;
     } catch {
-      // Continue with environment variables when the database is unavailable.
+      // Continue with environment variables
     }
 
-    if (!googleClientId || !googleClientSecret) {
-      return NextResponse.json(
-        { success: false, error: 'Google OAuth 환경 변수가 없습니다. Vercel Production에 GOOGLE_CLIENT_ID와 GOOGLE_CLIENT_SECRET을 추가하세요.' },
-        { status: 503 }
-      );
+    if (!googleClientId || !googleClientSecret || !redirectUri) {
+      const redirectUrl = new URL('/auth/login', request.url);
+      redirectUrl.searchParams.set('error', 'Google OAuth 설정이 완료되지 않았습니다.');
+      return NextResponse.redirect(redirectUrl);
     }
 
-    // Google에서 토큰 가져오기
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -61,60 +61,31 @@ export async function GET(request: Request) {
 
     if (!tokenResponse.ok) {
       const tokenError = await tokenResponse.json().catch(() => ({}));
-      console.error('Google token exchange failed:', {
-        status: tokenResponse.status,
-        error: tokenError.error,
-        description: tokenError.error_description,
-        redirectUri,
-      });
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Google 인증에 실패했습니다: ${tokenError.error_description || tokenError.error || '토큰 교환 실패'}`,
-        },
-        { status: 400 }
-      );
+      console.error('Google token exchange failed:', tokenError);
+      const redirectUrl = new URL('/auth/login', request.url);
+      redirectUrl.searchParams.set('error', 'Google 인증에 실패했습니다.');
+      return NextResponse.redirect(redirectUrl);
     }
 
     const { access_token } = await tokenResponse.json();
 
-    // 사용자 정보 가져오기
     const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: { Authorization: `Bearer ${access_token}` },
     });
 
     if (!userInfoResponse.ok) {
-      return NextResponse.json(
-        { success: false, error: '사용자 정보를 가져올 수 없습니다.' },
-        { status: 400 }
-      );
+      const redirectUrl = new URL('/auth/login', request.url);
+      redirectUrl.searchParams.set('error', '사용자 정보를 가져올 수 없습니다.');
+      return NextResponse.redirect(redirectUrl);
     }
 
     const googleUser = await userInfoResponse.json();
 
-    // The current deployment may run before the database adapter is connected.
-    // Complete OAuth with a signed session token in that case so login does not fail
-    // after Google has already authenticated the account.
-    if (typeof prisma.user?.findUnique !== 'function') {
-      const token = generateToken({
-        userId: googleUser.id,
-        email: googleUser.email,
-        name: googleUser.name,
-        provider: 'google',
-      });
-      const redirectUrl = new URL('/auth/callback', process.env.NEXT_PUBLIC_API_URL || 'https://www.xn--9i1b408a2kja054b.com');
-      redirectUrl.searchParams.set('token', token);
-      return NextResponse.redirect(redirectUrl);
-    }
-
-    // 기존 사용자 확인
     let user = await prisma.user.findUnique({
       where: { email: googleUser.email },
     });
 
     if (!user) {
-      // 새 사용자 생성
-      const { generateUniqueId } = await import('@/lib/auth');
       let uniqueId = generateUniqueId();
       let isUnique = false;
 
@@ -134,53 +105,66 @@ export async function GET(request: Request) {
         data: {
           email: googleUser.email,
           name: googleUser.name,
+          googleId: googleUser.id,
           uniqueId,
           provider: 'google',
-          isVerified: true, // Google 계정은 자동 인증
+          isVerified: true,
         },
       });
 
-      // 로그 기록
       await createLog({
-        type: 'signup',
+        type: 'SIGNUP',
         userId: user.id,
         email: user.email,
         action: 'Google 회원가입',
-        details: { uniqueId, provider: 'google' },
+        details: { uniqueId, provider: 'google', googleId: googleUser.id },
+        ipAddress: ip,
+        userAgent,
       });
     } else if (user.isBlacklisted) {
-      return NextResponse.json(
-        { success: false, error: '차단된 계정입니다. 관리자에게 문의하세요.' },
-        { status: 403 }
-      );
+      const redirectUrl = new URL('/auth/login', request.url);
+      redirectUrl.searchParams.set('error', '차단된 계정입니다.');
+      return NextResponse.redirect(redirectUrl);
+    } else {
+      // Update googleId if not set
+      if (!user.googleId) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { googleId: googleUser.id },
+        });
+      }
     }
 
-    // 로그 기록 (로그인)
     await createLog({
-      type: 'access',
+      type: 'LOGIN',
       userId: user.id,
       email: user.email,
       action: 'Google 로그인',
+      ipAddress: ip,
+      userAgent,
     });
 
-    // JWT 토큰 생성
-    const token = generateToken({
-      userId: user.id,
-      email: user.email,
-      uniqueId: user.uniqueId,
-      tier: user.tier,
+    const sessionToken = await createUserSession(user.id);
+
+    const redirectUrl = new URL('/', request.url);
+    const response = NextResponse.redirect(redirectUrl);
+
+    response.cookies.set('session', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60,
+      path: '/',
     });
 
-    // 클라이언트로 리다이렉트
-    const redirectUrl = new URL('/auth/callback', process.env.NEXT_PUBLIC_API_URL || 'https://www.xn--9i1b408a2kja054b.com');
-    redirectUrl.searchParams.set('token', token);
+    // Clear oauth state
+    response.cookies.delete('oauth_state');
 
-    return NextResponse.redirect(redirectUrl);
+    return response;
   } catch (error) {
     console.error('Google callback error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Google 로그인 중 오류가 발생했습니다.' },
-      { status: 500 }
-    );
+    const redirectUrl = new URL('/auth/login', request.url);
+    redirectUrl.searchParams.set('error', 'Google 로그인 중 오류가 발생했습니다.');
+    return NextResponse.redirect(redirectUrl);
   }
 }

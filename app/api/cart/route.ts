@@ -1,174 +1,83 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
-import { verifyToken } from '@/lib/auth';
+import { verifyUserSession } from '@/lib/auth';
 
-export async function GET(request: Request) {
+async function getUserId() {
+  const token = (await cookies()).get('session')?.value;
+  return token ? verifyUserSession(token) : null;
+}
+
+export async function GET() {
   try {
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: '인증이 필요합니다.' },
-        { status: 401 }
-      );
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: '유효하지 않은 토큰입니다.' },
-        { status: 401 }
-      );
-    }
-
-    const cartItems = await prisma.cartItem.findMany({
-      where: { userId: decoded.userId },
-      include: {
-        product: {
-          include: {
-            options: true,
-          },
-        },
-        option: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    return NextResponse.json({
-      success: true,
-      data: cartItems,
-    });
+    const userId = await getUserId();
+    if (!userId) return NextResponse.json({ success: false, error: '로그인이 필요합니다.' }, { status: 401 });
+    const cartItems = await prisma.cartItem.findMany({ where: { userId }, include: { product: { include: { options: true } }, option: true }, orderBy: { createdAt: 'desc' } });
+    return NextResponse.json({ success: true, data: cartItems });
   } catch (error) {
     console.error('Cart fetch error:', error);
-    return NextResponse.json(
-      { success: false, error: '장바구니를 불러오는 중 오류가 발생했습니다.' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: '장바구니를 불러오는 중 오류가 발생했습니다.' }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: '인증이 필요합니다.' },
-        { status: 401 }
-      );
+    const userId = await getUserId();
+    if (!userId) return NextResponse.json({ success: false, error: '로그인이 필요합니다.' }, { status: 401 });
+    const body = await request.json() as { productId?: unknown; optionId?: unknown; quantity?: unknown };
+    const productId = typeof body.productId === 'string' ? body.productId : '';
+    const optionId = body.optionId === null || body.optionId === undefined ? null : typeof body.optionId === 'string' ? body.optionId : '';
+    const quantity = Number(body.quantity);
+    if (!productId || optionId === '' || !Number.isSafeInteger(quantity) || quantity < 1 || quantity > 999) {
+      return NextResponse.json({ success: false, error: '상품, 옵션, 수량을 확인해주세요.' }, { status: 400 });
     }
-
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: '유효하지 않은 토큰입니다.' },
-        { status: 401 }
-      );
-    }
-
-    const { productId, optionId, quantity } = await request.json();
-
-    // 기존 장바구니 아이템 확인
-    const existingItem = await prisma.cartItem.findUnique({
-      where: {
-        userId_productId_optionId: {
-          userId: decoded.userId,
-          productId,
-          optionId: optionId || null,
-        },
-      },
-    });
-
-    let cartItem;
-
-    if (existingItem) {
-      // 수량 업데이트
-      cartItem = await prisma.cartItem.update({
-        where: { id: existingItem.id },
-        data: { quantity: existingItem.quantity + quantity },
-        include: {
-          product: true,
-          option: true,
-        },
-      });
-    } else {
-      // 새로 추가
-      cartItem = await prisma.cartItem.create({
-        data: {
-          userId: decoded.userId,
-          productId,
-          optionId,
-          quantity,
-        },
-        include: {
-          product: true,
-          option: true,
-        },
-      });
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: '장바구니에 추가되었습니다.',
-      data: cartItem,
-    });
+    const product = await prisma.product.findFirst({ where: { id: productId, isVisible: true, isDraft: false }, include: { options: true } });
+    if (!product) return NextResponse.json({ success: false, error: '판매 중인 상품을 찾을 수 없습니다.' }, { status: 404 });
+    const option = optionId ? product.options.find((item) => item.id === optionId) : null;
+    if (optionId && !option) return NextResponse.json({ success: false, error: '상품 옵션을 찾을 수 없습니다.' }, { status: 400 });
+    if (option && option.stock < quantity) return NextResponse.json({ success: false, error: '재고가 부족합니다.' }, { status: 409 });
+    const existingItem = await prisma.cartItem.findFirst({ where: { userId, productId, optionId } });
+    if (existingItem && existingItem.quantity + quantity > 999) return NextResponse.json({ success: false, error: '최대 수량을 초과했습니다.' }, { status: 400 });
+    const cartItem = existingItem
+      ? await prisma.cartItem.update({ where: { id: existingItem.id }, data: { quantity: { increment: quantity } }, include: { product: true, option: true } })
+      : await prisma.cartItem.create({ data: { userId, productId, optionId, quantity }, include: { product: true, option: true } });
+    return NextResponse.json({ success: true, data: cartItem });
   } catch (error) {
     console.error('Cart add error:', error);
-    return NextResponse.json(
-      { success: false, error: '장바구니 추가 중 오류가 발생했습니다.' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: '장바구니 추가 중 오류가 발생했습니다.' }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const userId = await getUserId();
+    if (!userId) return NextResponse.json({ success: false, error: '로그인이 필요합니다.' }, { status: 401 });
+    const body = await request.json() as { id?: unknown; quantity?: unknown };
+    const id = typeof body.id === 'string' ? body.id : '';
+    const quantity = Number(body.quantity);
+    if (!id || !Number.isSafeInteger(quantity) || quantity < 1 || quantity > 999) return NextResponse.json({ success: false, error: '수량을 확인해주세요.' }, { status: 400 });
+    const item = await prisma.cartItem.findFirst({ where: { id, userId }, include: { option: true } });
+    if (!item) return NextResponse.json({ success: false, error: '장바구니 상품을 찾을 수 없습니다.' }, { status: 404 });
+    if (item.option && item.option.stock < quantity) return NextResponse.json({ success: false, error: '재고가 부족합니다.' }, { status: 409 });
+    const updated = await prisma.cartItem.update({ where: { id }, data: { quantity }, include: { product: true, option: true } });
+    return NextResponse.json({ success: true, data: updated });
+  } catch (error) {
+    console.error('Cart update error:', error);
+    return NextResponse.json({ success: false, error: '장바구니 수량 변경 중 오류가 발생했습니다.' }, { status: 500 });
   }
 }
 
 export async function DELETE(request: Request) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: '인증이 필요합니다.' },
-        { status: 401 }
-      );
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: '유효하지 않은 토큰입니다.' },
-        { status: 401 }
-      );
-    }
-
-    const { searchParams } = new URL(request.url);
-    const cartItemId = searchParams.get('id');
-
-    if (!cartItemId) {
-      return NextResponse.json(
-        { success: false, error: '장바구니 아이템 ID가 필요합니다.' },
-        { status: 400 }
-      );
-    }
-
-    await prisma.cartItem.delete({
-      where: {
-        id: cartItemId,
-        userId: decoded.userId,
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: '장바구니에서 삭제되었습니다.',
-    });
+    const userId = await getUserId();
+    if (!userId) return NextResponse.json({ success: false, error: '로그인이 필요합니다.' }, { status: 401 });
+    const id = new URL(request.url).searchParams.get('id');
+    if (!id) return NextResponse.json({ success: false, error: '장바구니 아이템 ID가 필요합니다.' }, { status: 400 });
+    const deleted = await prisma.cartItem.deleteMany({ where: { id, userId } });
+    if (!deleted.count) return NextResponse.json({ success: false, error: '장바구니 상품을 찾을 수 없습니다.' }, { status: 404 });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Cart delete error:', error);
-    return NextResponse.json(
-      { success: false, error: '장바구니 삭제 중 오류가 발생했습니다.' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: '장바구니 삭제 중 오류가 발생했습니다.' }, { status: 500 });
   }
 }

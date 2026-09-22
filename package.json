@@ -11,10 +11,8 @@
     "contract:emit": "prisma contract emit"
   },
   "dependencies": {
-    "@prisma/client": "^7.10.0",
-    "@prisma/orm-postgres": "^8.0.0-rc.11",
+    "@prisma/client": "^6.19.0",
     "bcryptjs": "^3.0.3",
-    "dotenv": "^18.0.1",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.47.0",
     "next": "16.3.5",
@@ -24,19 +22,22 @@
     "uuid": "^14.0.2"
   },
   "devDependencies": {
-    "@prisma/cli-engine": "^0.4.0",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^20",
+    "@types/node": "^20.19.43",
     "@types/nodemailer": "^8.0.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
-    "prisma": "^8.0.0-rc.15",
+    "prisma": "^6.19.0",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
+  },
+  "prisma": {
+    "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
   }
 }
