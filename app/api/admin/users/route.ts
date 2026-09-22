@@ -8,12 +8,13 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20')));
     const search = searchParams.get('search');
     const tier = searchParams.get('tier');
     const isBlacklisted = searchParams.get('isBlacklisted');
 
-    const skip = (page - 1) * limit;
+    const safePage = Math.max(1, page);
+    const skip = (safePage - 1) * limit;
 
     const where: Prisma.UserWhereInput = {};
 
@@ -64,7 +65,7 @@ export async function GET(request: Request) {
       data: {
         users,
         total,
-        page,
+        page: safePage,
         totalPages: Math.ceil(total / limit),
       },
     });

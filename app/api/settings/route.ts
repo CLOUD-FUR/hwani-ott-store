@@ -13,8 +13,6 @@ export async function GET() {
         bankName: true,
         bankAccount: true,
         accountHolder: true,
-        googleClientId: true,
-        googleRedirectUri: true,
       },
     });
     return NextResponse.json({ success: true, data: settings });

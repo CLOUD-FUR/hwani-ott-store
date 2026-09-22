@@ -34,7 +34,6 @@ export default function AdminUsersPage() {
 
   const fetchUsers = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
       let url = '/api/admin/users';
       const params = new URLSearchParams();
 
@@ -50,9 +49,7 @@ export default function AdminUsersPage() {
       }
 
       const res = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        cache: 'no-store',
       });
 
       if (!res.ok) {
@@ -75,12 +72,10 @@ export default function AdminUsersPage() {
 
   const handleTierChange = async (userId: string, tier: string) => {
     try {
-      const token = localStorage.getItem('adminToken');
       const res = await fetch(`/api/admin/users/${userId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ tier }),
       });
@@ -100,12 +95,10 @@ export default function AdminUsersPage() {
     if (!confirm(`이 사용자를 ${isBlacklisted ? '차단 해제' : '차단'}하시겠습니까?`)) return;
 
     try {
-      const token = localStorage.getItem('adminToken');
       const res = await fetch(`/api/admin/users/${userId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ isBlacklisted: !isBlacklisted }),
       });

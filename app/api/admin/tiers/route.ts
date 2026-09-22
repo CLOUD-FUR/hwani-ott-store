@@ -35,6 +35,11 @@ export async function PUT(request: Request) {
     }
 
     // 각 등급 업데이트
+    const validRoles = new Set(['USER', 'SILVER', 'GOLD', 'PLATINUM', 'DIAMOND']);
+    if (tiers.some((tier) => !validRoles.has(tier.tier) || !Number.isInteger(Number(tier.minPurchase)) || Number(tier.minPurchase) < 0 || !Number.isInteger(Number(tier.discountRate)) || Number(tier.discountRate) < 0 || Number(tier.discountRate) > 100)) {
+      return NextResponse.json({ success: false, error: '등급 설정 값이 올바르지 않습니다.' }, { status: 400 });
+    }
+
     const updates = tiers.map(tier =>
       prisma.tierConfig.upsert({
         where: { tier: tier.tier },

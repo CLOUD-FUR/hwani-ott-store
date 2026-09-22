@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   try {
     const { title, content, link, isActive, startDate, endDate } = await request.json();
 
-    if (!title || !content) {
+    if (typeof title !== 'string' || typeof content !== 'string' || title.length > 200 || content.length > 10000 || (link && (!link.startsWith('https://') && !link.startsWith('http://')))) {
       return NextResponse.json(
         { success: false, error: '제목과 내용을 입력해주세요.' },
         { status: 400 }

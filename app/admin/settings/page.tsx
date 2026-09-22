@@ -49,11 +49,8 @@ export default function AdminSettingsPage() {
 
   const fetchSettings = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
       const res = await fetch('/api/admin/settings', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        cache: 'no-store',
       });
 
       if (!res.ok) {
@@ -75,12 +72,10 @@ export default function AdminSettingsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const token = localStorage.getItem('adminToken');
       const res = await fetch('/api/admin/settings', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(settings),
       });

@@ -27,11 +27,8 @@ export default function AdminProductsPage() {
 
   const fetchProducts = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
       const res = await fetch('/api/admin/products', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        cache: 'no-store',
       });
 
       if (!res.ok) {
@@ -52,12 +49,9 @@ export default function AdminProductsPage() {
     if (!confirm('이 상품을 삭제하시겠습니까?')) return;
 
     try {
-      const token = localStorage.getItem('adminToken');
       const res = await fetch(`/api/admin/products/${id}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        cache: 'no-store',
       });
 
       if (res.ok) {
@@ -72,12 +66,10 @@ export default function AdminProductsPage() {
 
   const handleToggleAvailability = async (id: string, currentStatus: boolean) => {
     try {
-      const token = localStorage.getItem('adminToken');
       const res = await fetch(`/api/admin/products/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ isAvailable: !currentStatus }),
       });

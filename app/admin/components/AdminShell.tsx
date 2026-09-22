@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 
@@ -15,6 +15,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const root = document.documentElement;
@@ -23,6 +24,10 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   }, [dark]);
 
   useEffect(() => {
+    if (pathname === "/admin/login") {
+      setLoading(false);
+      return;
+    }
     const checkAuth = async () => {
       try {
         const res = await fetch("/api/admin/auth/me");
@@ -38,11 +43,13 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     };
 
     checkAuth();
-  }, [router]);
+  }, [pathname, router]);
 
   const toggleDark = useCallback(() => setDark((d) => !d), []);
   const toggleSidebar = useCallback(() => setSidebarOpen((s) => !s), []);
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
+
+  if (pathname === "/admin/login") return <>{children}</>;
 
   if (loading) {
     return (

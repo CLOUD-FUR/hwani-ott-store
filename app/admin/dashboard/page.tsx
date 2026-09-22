@@ -20,20 +20,13 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (localStorage.getItem('adminSession') !== 'true') {
-      router.replace('/admin/login');
-      return;
-    }
     fetchStats();
   }, [router]);
 
   const fetchStats = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
       const res = await fetch('/api/admin/stats', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        cache: 'no-store',
       });
 
       if (!res.ok) {

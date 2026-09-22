@@ -1,9 +1,6 @@
 import crypto from 'crypto';
 import { prisma } from './prisma';
 
-const SESSION_SECRET = process.env.SESSION_SECRET || 'development-session-secret-change-in-production';
-const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || 'development-admin-secret-change-in-production';
-
 // Generate secure random tokens
 export function generateSecureToken(): string {
   return crypto.randomBytes(32).toString('hex');
@@ -11,12 +8,12 @@ export function generateSecureToken(): string {
 
 // Generate 5-digit unique member ID (10000-99999)
 export function generateUniqueId(): string {
-  return Math.floor(10000 + Math.random() * 90000).toString();
+  return crypto.randomInt(10000, 100000).toString();
 }
 
 // Generate 6-digit verification code
 export function generateVerifyCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return crypto.randomInt(100000, 1000000).toString();
 }
 
 // Generate order number: YYYYMMDD + memberID + purchaseSequence
@@ -57,7 +54,7 @@ export async function verifyUserSession(token: string): Promise<string | null> {
       include: { user: true },
     });
 
-    if (!session || session.expiresAt < new Date()) {
+    if (!session || session.expiresAt < new Date() || session.user.isBlacklisted) {
       if (session) {
         await prisma.session.delete({ where: { id: session.id } });
       }
@@ -160,7 +157,7 @@ export async function checkRateLimit(key: string, maxAttempts: number, windowMs:
     return true;
   } catch (error) {
     console.error('Rate limit check error:', error);
-    return true; // Allow on error to avoid blocking legitimate users
+    return false; // Fail closed when the limiter cannot be checked
   }
 }
 

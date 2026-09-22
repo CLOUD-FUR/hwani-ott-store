@@ -34,11 +34,8 @@ export default function AdminProductFormPage() {
 
   const fetchProduct = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
       const res = await fetch(`/api/admin/products/${params.id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        cache: 'no-store',
       });
 
       if (res.ok) {
@@ -66,12 +63,9 @@ export default function AdminProductFormPage() {
     formData.append('file', file);
 
     try {
-      const token = localStorage.getItem('adminToken');
       const res = await fetch('/api/admin/upload', {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        cache: 'no-store',
         body: formData,
       });
 
@@ -112,14 +106,12 @@ export default function AdminProductFormPage() {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('adminToken');
       const url = isEdit ? `/api/admin/products/${params.id}` : '/api/admin/products';
 
       const res = await fetch(url, {
         method: isEdit ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           ...formData,

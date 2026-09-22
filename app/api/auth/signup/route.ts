@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { generateUniqueId, generateVerifyCode, checkRateLimit } from '@/lib/auth';
 import { sendVerificationEmail } from '@/lib/email';
 import { createLog } from '@/lib/logger';
 
 export async function POST(request: Request) {
   try {
-    const { email, password, name } = await request.json();
+    const body = await request.json() as { email?: unknown; password?: unknown; name?: unknown };
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+    const password = typeof body.password === 'string' ? body.password : '';
+    const name = typeof body.name === 'string' ? body.name.trim() : '';
     const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
     const userAgent = request.headers.get('user-agent') || undefined;
 
@@ -63,6 +67,7 @@ export async function POST(request: Request) {
     }
 
     const verifyToken = generateVerifyCode();
+    const verifyTokenHash = crypto.createHash('sha256').update(verifyToken).digest('hex');
     const verifyExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     const user = await prisma.user.create({
@@ -71,7 +76,7 @@ export async function POST(request: Request) {
         password: hashedPassword,
         name,
         uniqueId,
-        verifyToken,
+        verifyToken: verifyTokenHash,
         verifyExpires,
         provider: 'email',
       },

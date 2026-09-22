@@ -36,11 +36,8 @@ export default function AdminNoticesPage() {
 
   const fetchNotices = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
       const res = await fetch('/api/admin/notices', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        cache: 'no-store',
       });
 
       if (!res.ok) {
@@ -61,7 +58,6 @@ export default function AdminNoticesPage() {
     e.preventDefault();
 
     try {
-      const token = localStorage.getItem('adminToken');
       const url = editingNotice
         ? `/api/admin/notices/${editingNotice.id}`
         : '/api/admin/notices';
@@ -70,7 +66,6 @@ export default function AdminNoticesPage() {
         method: editingNotice ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(formData),
       });
@@ -112,12 +107,9 @@ export default function AdminNoticesPage() {
     if (!confirm('이 공지사항을 삭제하시겠습니까?')) return;
 
     try {
-      const token = localStorage.getItem('adminToken');
       const res = await fetch(`/api/admin/notices/${id}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        cache: 'no-store',
       });
 
       if (res.ok) {

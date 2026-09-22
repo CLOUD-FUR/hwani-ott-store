@@ -30,6 +30,7 @@ export default function AdminOrdersPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [deliveryInfo, setDeliveryInfo] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
 
   useEffect(() => {
     fetchOrders();
@@ -37,15 +38,12 @@ export default function AdminOrdersPage() {
 
   const fetchOrders = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
       const url = statusFilter === 'all'
         ? '/api/admin/orders'
         : `/api/admin/orders?status=${statusFilter}`;
 
       const res = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        cache: 'no-store',
       });
 
       if (!res.ok) {
@@ -64,16 +62,15 @@ export default function AdminOrdersPage() {
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     try {
-      const token = localStorage.getItem('adminToken');
       const res = await fetch(`/api/admin/orders/${orderId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           status: newStatus,
           deliveryInfo: deliveryInfo || undefined,
+          rejectionReason: rejectionReason || undefined,
         }),
       });
 
@@ -81,6 +78,7 @@ export default function AdminOrdersPage() {
         alert('주문 상태가 변경되었습니다.');
         setSelectedOrder(null);
         setDeliveryInfo('');
+        setRejectionReason('');
         fetchOrders();
       }
     } catch (error) {
@@ -90,17 +88,19 @@ export default function AdminOrdersPage() {
   };
 
   const statusText: Record<string, string> = {
-    pending: '입금 대기',
-    processing: '처리 중',
-    completed: '완료',
-    cancelled: '취소',
+    PENDING: '입금 대기',
+    APPROVED: '승인됨',
+    REJECTED: '거절됨',
+    COMPLETED: '거래 완료',
+    CANCELLED: '취소됨',
   };
 
   const statusColors: Record<string, string> = {
-    pending: 'text-orange-400 bg-orange-500/10 border-orange-500/20',
-    processing: 'text-sky-400 bg-sky-500/10 border-sky-500/20',
-    completed: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-    cancelled: 'text-red-400 bg-red-500/10 border-red-500/20',
+    PENDING: 'text-orange-400 bg-orange-500/10 border-orange-500/20',
+    APPROVED: 'text-sky-400 bg-sky-500/10 border-sky-500/20',
+    REJECTED: 'text-red-400 bg-red-500/10 border-red-500/20',
+    COMPLETED: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+    CANCELLED: 'text-red-400 bg-red-500/10 border-red-500/20',
   };
 
   if (loading) {
@@ -118,7 +118,7 @@ export default function AdminOrdersPage() {
 
         {/* 필터 */}
         <div className="flex gap-2 mb-6">
-          {['all', 'pending', 'processing', 'completed', 'cancelled'].map((status) => (
+          {['all', 'PENDING', 'APPROVED', 'REJECTED', 'COMPLETED', 'CANCELLED'].map((status) => (
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
@@ -188,23 +188,23 @@ export default function AdminOrdersPage() {
 
                 {/* 상태 변경 버튼 */}
                 <div className="flex gap-2">
-                  {order.status === 'pending' && (
+                  {order.status === 'PENDING' && (
                     <>
                       <button
-                        onClick={() => handleStatusChange(order.id, 'processing')}
+                        onClick={() => handleStatusChange(order.id, 'APPROVED')}
                         className="px-4 py-2 bg-sky-500 hover:bg-sky-600 rounded transition"
                       >
-                        처리 중으로 변경
+                        입금 승인
                       </button>
                       <button
-                        onClick={() => handleStatusChange(order.id, 'cancelled')}
+                        onClick={() => handleStatusChange(order.id, 'REJECTED')}
                         className="px-4 py-2 bg-red-500 hover:bg-red-600 rounded transition"
                       >
-                        취소
+                        거절
                       </button>
                     </>
                   )}
-                  {order.status === 'processing' && (
+                  {order.status === 'APPROVED' && (
                     <button
                       onClick={() => setSelectedOrder(order)}
                       className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 rounded transition"
@@ -239,7 +239,7 @@ export default function AdminOrdersPage() {
 
             <div className="flex gap-2 mt-6">
               <button
-                onClick={() => handleStatusChange(selectedOrder.id, 'completed')}
+                onClick={() => handleStatusChange(selectedOrder.id, 'COMPLETED')}
                 className="flex-1 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 rounded transition"
               >
                 완료 처리
@@ -248,6 +248,7 @@ export default function AdminOrdersPage() {
                 onClick={() => {
                   setSelectedOrder(null);
                   setDeliveryInfo('');
+        setRejectionReason('');
                 }}
                 className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded transition"
               >

@@ -5,7 +5,10 @@ import { verifyUserSession } from '@/lib/auth';
 
 async function getUserId() {
   const token = (await cookies()).get('session')?.value;
-  return token ? verifyUserSession(token) : null;
+  const userId = token ? await verifyUserSession(token) : null;
+  if (!userId) return null;
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { isBlacklisted: true } });
+  return user?.isBlacklisted ? null : userId;
 }
 
 export async function GET() {

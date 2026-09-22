@@ -29,11 +29,8 @@ export default function AdminRevenuePage() {
 
   const fetchStats = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
       const res = await fetch(`/api/admin/revenue?month=${selectedMonth}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        cache: 'no-store',
       });
 
       if (!res.ok) {

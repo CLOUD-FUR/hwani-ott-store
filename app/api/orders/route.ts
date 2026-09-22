@@ -76,8 +76,12 @@ export async function POST(request: Request) {
         orderItemsData.push({ productId: item.productId, optionId: item.optionId ?? null, quantity: item.quantity, price: finalPrice, discount });
       }
 
-      const userOrdersCount = await tx.order.count({ where: { userId } });
-      const orderNumber = generateOrderNumber(user.uniqueId, userOrdersCount);
+      const sequenceUser = await tx.user.update({
+        where: { id: userId },
+        data: { purchaseSequence: { increment: 1 } },
+        select: { uniqueId: true, purchaseSequence: true },
+      });
+      const orderNumber = generateOrderNumber(sequenceUser.uniqueId, sequenceUser.purchaseSequence - 1);
       const settings = await tx.settings.findUnique({ where: { id: 'settings' } });
       const accountInfo = {
         bankName: settings?.bankName || '미설정',

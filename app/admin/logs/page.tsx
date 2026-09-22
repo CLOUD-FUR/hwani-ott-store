@@ -32,7 +32,6 @@ export default function AdminLogsPage() {
 
   const fetchLogs = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '50',
@@ -49,9 +48,7 @@ export default function AdminLogsPage() {
       }
 
       const res = await fetch(`/api/admin/logs?${params.toString()}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        cache: 'no-store',
       });
 
       if (!res.ok) {

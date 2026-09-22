@@ -18,7 +18,7 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/admin/login', {
+      const res = await fetch('/api/admin/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
@@ -27,8 +27,6 @@ export default function AdminLoginPage() {
       const data = await res.json();
 
       if (res.ok) {
-        localStorage.setItem('adminSession', 'true');
-        localStorage.setItem('adminUsername', data.data?.username || username);
         router.replace('/admin/dashboard');
       } else {
         setError(data.error || '로그인에 실패했습니다.');

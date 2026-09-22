@@ -1,14 +1,21 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createLog } from '@/lib/logger';
+import { checkRateLimit } from '@/lib/auth';
+import crypto from 'crypto';
 
 export async function POST(request: Request) {
   try {
-    const { email, code } = await request.json();
+    const body = await request.json() as { email?: unknown; code?: unknown };
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+    const code = typeof body.code === 'string' ? body.code.trim() : '';
     const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
     const userAgent = request.headers.get('user-agent') || undefined;
 
-    if (!email || !code) {
+    const canProceed = await checkRateLimit(`verify:${ip}:${email}`, 8, 15 * 60 * 1000);
+    if (!canProceed) return NextResponse.json({ success: false, error: '인증 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.' }, { status: 429 });
+
+    if (!email || !/^\d{6}$/.test(code)) {
       return NextResponse.json(
         { success: false, error: '이메일과 인증 코드를 입력해주세요.' },
         { status: 400 }
@@ -47,7 +54,8 @@ export async function POST(request: Request) {
       );
     }
 
-    if (user.verifyToken !== code) {
+    const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+    if (user.verifyToken !== codeHash) {
       return NextResponse.json(
         { success: false, error: '인증 코드가 일치하지 않습니다.' },
         { status: 400 }

@@ -14,7 +14,7 @@ export async function GET() {
     const currentMonthRevenue = await prisma.order.aggregate({
       where: {
         status: 'COMPLETED',
-        createdAt: { gte: startOfMonth },
+        completedAt: { gte: startOfMonth },
       },
       _sum: { totalAmount: true },
     });
@@ -23,7 +23,7 @@ export async function GET() {
     const lastMonthRevenue = await prisma.order.aggregate({
       where: {
         status: 'COMPLETED',
-        createdAt: { gte: startOfLastMonth, lte: endOfLastMonth },
+        completedAt: { gte: startOfLastMonth, lt: new Date(now.getFullYear(), now.getMonth(), 1) },
       },
       _sum: { totalAmount: true },
     });
@@ -36,7 +36,7 @@ export async function GET() {
 
     // 이번 달 주문 수
     const currentMonthOrders = await prisma.order.count({
-      where: { createdAt: { gte: startOfMonth } },
+      where: { status: 'COMPLETED', completedAt: { gte: startOfMonth } },
     });
 
     // 총 사용자 수
@@ -54,11 +54,11 @@ export async function GET() {
     const recentOrders = await prisma.order.findMany({
       where: {
         status: 'COMPLETED',
-        createdAt: { gte: sevenDaysAgo },
+        completedAt: { gte: sevenDaysAgo },
       },
       select: {
         totalAmount: true,
-        createdAt: true,
+        completedAt: true,
       },
     });
 
@@ -72,7 +72,7 @@ export async function GET() {
       nextDate.setDate(nextDate.getDate() + 1);
 
       const dayOrders = recentOrders.filter(
-        (order: { createdAt: Date; totalAmount: number }) => order.createdAt >= date && order.createdAt < nextDate
+        (order: { completedAt: Date | null; totalAmount: number }) => order.completedAt !== null && order.completedAt >= date && order.completedAt < nextDate
       );
 
       const total = dayOrders.reduce((sum: number, order: { totalAmount: number }) => sum + order.totalAmount, 0);

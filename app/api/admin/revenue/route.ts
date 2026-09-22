@@ -14,16 +14,17 @@ export async function GET(request: Request) {
     const yearStart = new Date(year, 0, 1);
     const now = new Date();
     const completed = { status: 'COMPLETED' as const };
-    const [monthOrders, yearSum, totalSum, lastMonthSum, topItems] = await Promise.all([
-      prisma.order.findMany({ where: { ...completed, createdAt: { gte: start, lt: end } }, select: { totalAmount: true, createdAt: true } }),
-      prisma.order.aggregate({ where: { ...completed, createdAt: { gte: yearStart, lt: new Date(year + 1, 0, 1) } }, _sum: { totalAmount: true } }),
+    const [monthOrders, yearOrders, yearSum, totalSum, lastMonthSum, topItems] = await Promise.all([
+      prisma.order.findMany({ where: { ...completed, completedAt: { gte: start, lt: end } }, select: { totalAmount: true, completedAt: true } }),
+      prisma.order.findMany({ where: { ...completed, completedAt: { gte: yearStart, lt: new Date(year + 1, 0, 1) } }, select: { totalAmount: true, completedAt: true } }),
+      prisma.order.aggregate({ where: { ...completed, completedAt: { gte: yearStart, lt: new Date(year + 1, 0, 1) } }, _sum: { totalAmount: true } }),
       prisma.order.aggregate({ where: completed, _sum: { totalAmount: true } }),
-      prisma.order.aggregate({ where: { ...completed, createdAt: { gte: monthStart(year, month - 1), lt: start } }, _sum: { totalAmount: true } }),
-      prisma.orderItem.findMany({ where: { order: { ...completed, createdAt: { gte: start, lt: end } } }, include: { product: { select: { name: true } } }, }),
+      prisma.order.aggregate({ where: { ...completed, completedAt: { gte: monthStart(year, month - 1), lt: start } }, _sum: { totalAmount: true } }),
+      prisma.orderItem.findMany({ where: { order: { ...completed, completedAt: { gte: start, lt: end } } }, include: { product: { select: { name: true } } }, }),
     ]);
     const dailyRevenue = Array.from({ length: new Date(year, month, 0).getDate() }, (_, index) => {
       const date = new Date(year, month - 1, index + 1);
-      const orders = monthOrders.filter((order) => order.createdAt.toDateString() === date.toDateString());
+      const orders = monthOrders.filter((order) => order.completedAt?.toDateString() === date.toDateString());
       return { date: date.toISOString().slice(0, 10), revenue: orders.reduce((sum, order) => sum + order.totalAmount, 0), orders: orders.length };
     });
     const productMap = new Map<string, { revenue: number; count: number }>();
@@ -40,7 +41,7 @@ export async function GET(request: Request) {
       lastMonthRevenue: lastMonthSum._sum.totalAmount || 0,
       currentYearRevenue: yearSum._sum.totalAmount || 0,
       dailyRevenue,
-      monthlyRevenue: [],
+      monthlyRevenue: Array.from({ length: 12 }, (_, index) => { const monthStartDate = new Date(year, index, 1); const monthEndDate = new Date(year, index + 1, 1); const orders = yearOrders.filter((order) => order.completedAt && order.completedAt >= monthStartDate && order.completedAt < monthEndDate); return { month: `${year}-${String(index + 1).padStart(2, '0')}`, revenue: orders.reduce((sum, order) => sum + order.totalAmount, 0), orders: orders.length }; }),
       topProducts,
     } });
   } catch (error) {

@@ -33,12 +33,9 @@ export default function AdminProductNewPage() {
     formData.append('file', file);
 
     try {
-      const token = localStorage.getItem('adminToken');
       const res = await fetch('/api/admin/upload', {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        cache: 'no-store',
         body: formData,
       });
 
@@ -79,12 +76,10 @@ export default function AdminProductNewPage() {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('adminToken');
       const res = await fetch('/api/admin/products', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           ...formData,

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ChevronRight, Play, Star, TrendingUp, Sparkles } from 'lucide-react';
+import { ChevronRight, Play, Star, TrendingUp, Sparkles, X } from 'lucide-react';
 
 interface Product {
   id: string;
@@ -17,8 +17,10 @@ interface Product {
 export default function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [notice, setNotice] = useState<{ id: string; title: string; content: string; image: string | null; link: string | null } | null>(null);
 
   useEffect(() => {
+    fetch('/api/notices').then((res) => res.json()).then((data) => { const candidate = data.notices?.[0]; if (candidate && localStorage.getItem(`notice-hidden-${candidate.id}`) !== new Date().toISOString().slice(0, 10)) setNotice(candidate); }).catch(() => {});
     fetch('/api/products')
       .then((res) => res.json())
       .then((data) => {
@@ -49,6 +51,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-purple-50/20">
+      {notice && <div className="fixed inset-x-4 top-20 z-[60] mx-auto max-w-xl overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-2xl"><div className="flex items-start justify-between gap-4 p-5"> <div><p className="text-xs font-semibold text-blue-600">공지사항</p><h2 className="mt-1 text-lg font-bold text-gray-900">{notice.title}</h2><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-gray-600">{notice.content}</p>{notice.link?.startsWith('https://') && <a href={notice.link} target="_blank" rel="noreferrer" className="mt-3 inline-block text-sm font-semibold text-blue-600">자세히 보기 →</a>}</div><button onClick={() => setNotice(null)} aria-label="공지 닫기" className="rounded-lg p-1 text-gray-400 hover:bg-gray-100"><X className="h-5 w-5" /></button></div><button onClick={() => { localStorage.setItem(`notice-hidden-${notice.id}`, new Date().toISOString().slice(0, 10)); setNotice(null); }} className="w-full border-t border-gray-100 px-5 py-3 text-left text-xs text-gray-500">오늘 하루 보지 않기</button></div>}
       <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/85 backdrop-blur-xl">
         <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between px-6">
           <Link href="/" className="flex items-center gap-2.5">

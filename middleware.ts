@@ -4,7 +4,7 @@ export function middleware(request: NextRequest) {
   const { pathname } = new URL(request.url);
 
   // Skip auth check for login page and auth endpoints
-  if (pathname.startsWith('/admin/login') || pathname.startsWith('/api/admin/auth/login')) {
+  if (pathname.startsWith('/admin/login') || pathname.startsWith('/api/admin/auth/login') || pathname.startsWith('/api/admin/login')) {
     return NextResponse.next();
   }
 

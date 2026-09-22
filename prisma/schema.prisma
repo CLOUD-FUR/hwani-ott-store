@@ -21,6 +21,7 @@ model User {
   isBlacklisted   Boolean  @default(false)
   blacklistReason String?
   tier            Role     @default(USER)
+  purchaseSequence Int     @default(0) // 주문번호용 사용자 누적 요청 sequence
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

@@ -13,7 +13,8 @@ interface Product {
   images: string[];
   price?: number;
   image?: string | null;
-  isAvailable: boolean;
+  isVisible?: boolean;
+  isAvailable?: boolean;
   options?: { id: string; name: string; price: number }[];
 }
 
@@ -68,7 +69,7 @@ export default function ProductDetailPage() {
 
   if (!product) {
     return (
-      <div className="min-h-screen bg-[#0F172A]">
+      <div className="min-h-screen bg-[#f7f8fb] text-slate-900">
         <header className="border-b border-slate-800/50 bg-[#0B0E14]/80 backdrop-blur-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
@@ -91,21 +92,21 @@ export default function ProductDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0F172A]">
+    <div className="min-h-screen bg-[#f7f8fb] text-slate-900">
       {/* Header */}
-      <header className="border-b border-slate-800/50 bg-[#0B0E14]/80 backdrop-blur-sm sticky top-0 z-50">
+      <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link href="/" className="flex items-center gap-3">
               <Image src="/OTT.png" alt="화니 OTT" width={42} height={42} className="h-10 w-10 rounded-xl object-contain" priority />
-              <span className="text-xl font-bold text-white">화니 OTT</span>
+              <span className="text-xl font-bold text-slate-900">화니 OTT</span>
             </Link>
 
             <nav className="flex items-center gap-6">
-              <Link href="/products" className="text-slate-300 hover:text-white transition-colors text-sm font-medium">
+              <Link href="/products" className="text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
                 상품
               </Link>
-              <Link href="/auth/login" className="text-slate-300 hover:text-white transition-colors text-sm font-medium">
+              <Link href="/auth/login" className="text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
                 로그인
               </Link>
             </nav>
@@ -114,11 +115,11 @@ export default function ProductDetailPage() {
       </header>
 
       {/* Product Detail */}
-      <section className="py-16">
+      <section className="py-10 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <Link
             href="/products"
-            className="inline-flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-8"
+            className="inline-flex items-center gap-2 text-slate-500 hover:text-white transition-colors mb-8"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -126,9 +127,9 @@ export default function ProductDetailPage() {
             상품 목록으로
           </Link>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(360px,.9fr)] lg:gap-12">
             {/* Product Image */}
-            <div className="relative aspect-square bg-slate-800 rounded-xl overflow-hidden">
+            <div className="relative aspect-square overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
               {(product.images?.[0] || product.image) ? (
                 <Image
                   src={product.images?.[0] || product.image || ''}
@@ -143,7 +144,7 @@ export default function ProductDetailPage() {
                   </svg>
                 </div>
               )}
-              {!product.isAvailable && (
+              {!(product.isVisible ?? product.isAvailable) && (
                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                   <span className="px-4 py-2 bg-slate-800 text-slate-300 font-medium rounded-lg">
                     품절
@@ -153,30 +154,30 @@ export default function ProductDetailPage() {
             </div>
 
             {/* Product Info */}
-            <div className="flex flex-col">
-              <h1 className="text-4xl font-bold text-white mb-4">{product.name}</h1>
-              <p className="text-slate-400 text-lg mb-8 leading-relaxed">
+            <div className="flex flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+              <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl mb-4">{product.name}</h1>
+              <p className="text-slate-600 text-lg mb-8 leading-relaxed">
                 {product.description}
               </p>
 
               {/* Options */}
               {product.options && product.options.length > 0 && (
                 <div className="mb-6">
-                  <label className="block text-white font-medium mb-3">옵션 선택</label>
+                  <label className="block text-slate-900 font-medium mb-3">옵션 선택</label>
                   <div className="grid grid-cols-1 gap-2">
                     {product.options.map((option) => (
                       <button
                         key={option.name}
                         onClick={() => setSelectedOption(option.id)}
                         className={`p-4 rounded-lg border-2 transition-all text-left ${
-                          selectedOption === option.name
+                          selectedOption === option.id
                             ? 'border-[#38BDF8] bg-[#38BDF8]/10'
-                            : 'border-slate-700 bg-[#1E293B] hover:border-slate-600'
+                            : 'border-slate-700 bg-white hover:border-blue-300'
                         }`}
                       >
                         <div className="flex justify-between items-center">
-                          <span className="text-white font-medium">{option.name}</span>
-                          <span className="text-slate-400">
+                          <span className="text-slate-900 font-medium">{option.name}</span>
+                          <span className="text-slate-500">
                             {option.price > 0 ? `+${option.price.toLocaleString()}원` : '기본'}
                           </span>
                         </div>
@@ -188,18 +189,18 @@ export default function ProductDetailPage() {
 
               {/* Quantity */}
               <div className="mb-8">
-                <label className="block text-white font-medium mb-3">수량</label>
+                <label className="block text-slate-900 font-medium mb-3">수량</label>
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-10 h-10 bg-[#1E293B] border border-slate-700 rounded-lg text-white hover:bg-slate-700 transition-colors"
+                    className="w-10 h-10 bg-slate-50 border border-slate-200 rounded-lg text-white hover:bg-slate-700 transition-colors"
                   >
                     -
                   </button>
-                  <span className="w-16 text-center text-white font-medium">{quantity}</span>
+                  <span className="w-16 text-center text-slate-900 font-medium">{quantity}</span>
                   <button
                     onClick={() => setQuantity(quantity + 1)}
-                    className="w-10 h-10 bg-[#1E293B] border border-slate-700 rounded-lg text-white hover:bg-slate-700 transition-colors"
+                    className="w-10 h-10 bg-slate-50 border border-slate-200 rounded-lg text-white hover:bg-slate-700 transition-colors"
                   >
                     +
                   </button>
@@ -207,12 +208,12 @@ export default function ProductDetailPage() {
               </div>
 
               {/* Price */}
-              <div className="mb-8 p-6 bg-[#1E293B] rounded-xl border border-slate-700">
+              <div className="mb-8 p-6 bg-slate-50 rounded-2xl border border-slate-200">
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-400">총 가격</span>
-                  <span className="text-3xl font-bold text-white">
+                  <span className="text-slate-500">총 가격</span>
+                  <span className="text-3xl font-bold text-slate-900">
                     {getTotalPrice().toLocaleString()}
-                    <span className="text-lg text-slate-400 font-normal ml-1">원</span>
+                    <span className="text-lg text-slate-500 font-normal ml-1">원</span>
                   </span>
                 </div>
               </div>
@@ -220,20 +221,20 @@ export default function ProductDetailPage() {
               {/* Purchase Button */}
               <button
                 onClick={handlePurchase}
-                disabled={!product.isAvailable}
+                disabled={!(product.isVisible ?? product.isAvailable)}
                 className={`w-full py-4 rounded-xl font-semibold text-white transition-all ${
-                  product.isAvailable
-                    ? 'bg-[#F97316] hover:bg-[#EA580C] hover:shadow-lg hover:shadow-[#F97316]/20'
-                    : 'bg-slate-700 cursor-not-allowed'
+                  (product.isVisible ?? product.isAvailable)
+                    ? 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg hover:shadow-[#F97316]/20'
+                    : 'bg-slate-300 cursor-not-allowed'
                 }`}
               >
-                {product.isAvailable ? '구매하기' : '품절'}
+                {(product.isVisible ?? product.isAvailable) ? '구매하기' : '품절'}
               </button>
 
               {/* Info */}
-              <div className="mt-8 p-6 bg-[#1E293B]/50 rounded-xl border border-slate-800">
-                <h3 className="text-white font-semibold mb-4">구매 안내</h3>
-                <ul className="space-y-2 text-sm text-slate-400">
+              <div className="mt-8 p-6 bg-slate-50 rounded-2xl border border-slate-200">
+                <h3 className="text-slate-900 font-semibold mb-4">구매 안내</h3>
+                <ul className="space-y-2 text-sm text-slate-500">
                   <li className="flex items-start gap-2">
                     <svg className="w-5 h-5 text-[#38BDF8] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -260,7 +261,7 @@ export default function ProductDetailPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800 bg-[#0B0E14] mt-16">
+      <footer className="border-t border-slate-200 bg-white mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
             <p className="text-slate-500 text-sm">

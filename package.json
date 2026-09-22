@@ -7,11 +7,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "contract:emit": "prisma contract emit"
+    "lint": "eslint"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",
+    "@vercel/blob": "^2.8.0",
     "bcryptjs": "^3.0.3",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.47.0",
