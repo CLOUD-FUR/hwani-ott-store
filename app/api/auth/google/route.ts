@@ -25,9 +25,12 @@ async function getGoogleSettings() {
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const { googleClientId, redirectUri } = await getGoogleSettings();
+    const { googleClientId } = await getGoogleSettings();
+    // Use the public host that handled this request. Vercel redirects the apex
+    // domain to www, so the same URI must be sent to Google in both steps.
+    const redirectUri = new URL('/api/auth/google/callback', request.url).toString();
 
     if (!googleClientId) {
       return NextResponse.json(

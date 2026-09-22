@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     // Database settings remain supported when configured later from the admin panel.
     let googleClientId = process.env.GOOGLE_CLIENT_ID;
     let googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    let redirectUri = process.env.GOOGLE_REDIRECT_URI || `${process.env.NEXT_PUBLIC_API_URL || 'https://xn--9i1b408a2kja054b.com'}/api/auth/google/callback`;
+    let redirectUri = process.env.GOOGLE_REDIRECT_URI || new URL('/api/auth/google/callback', request.url).toString();
 
     try {
       const settings = await prisma.settings?.findUnique({ where: { id: 'settings' } });
