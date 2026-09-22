@@ -19,7 +19,16 @@ export async function GET(request: Request) {
     // Database settings remain supported when configured later from the admin panel.
     let googleClientId = process.env.GOOGLE_CLIENT_ID;
     let googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    let redirectUri = process.env.GOOGLE_REDIRECT_URI || new URL('/api/auth/google/callback', request.url).toString();
+    // Always use the public host that received this callback. If Vercel redirects
+    // apex to www, using a stale env redirect URI causes Google's token exchange
+    // to fail with redirect_uri_mismatch.
+    const requestUrl = new URL(request.url);
+    const forwardedHost = request.headers.get('x-forwarded-host');
+    const forwardedProto = request.headers.get('x-forwarded-proto');
+    const publicOrigin = forwardedHost
+      ? `${forwardedProto || requestUrl.protocol.replace(':', '')}://${forwardedHost.split(',')[0].trim()}`
+      : requestUrl.origin;
+    let redirectUri = new URL('/api/auth/google/callback', publicOrigin).toString();
 
     try {
       const settings = await prisma.settings?.findUnique({ where: { id: 'settings' } });
@@ -51,8 +60,18 @@ export async function GET(request: Request) {
     });
 
     if (!tokenResponse.ok) {
+      const tokenError = await tokenResponse.json().catch(() => ({}));
+      console.error('Google token exchange failed:', {
+        status: tokenResponse.status,
+        error: tokenError.error,
+        description: tokenError.error_description,
+        redirectUri,
+      });
       return NextResponse.json(
-        { success: false, error: 'Google 인증에 실패했습니다.' },
+        {
+          success: false,
+          error: `Google 인증에 실패했습니다: ${tokenError.error_description || tokenError.error || '토큰 교환 실패'}`,
+        },
         { status: 400 }
       );
     }
