@@ -27,7 +27,12 @@ export async function GET(
       isAvailable: product.isVisible,
     };
 
-    await prisma.product.update({ where: { id }, data: { clicks: { increment: 1 } } });
+    // Fire-and-forget click tracking: analytics must not delay the product response.
+    // Previously this was awaited, adding a full extra DB round trip to every page view.
+    prisma.product
+      .update({ where: { id }, data: { clicks: { increment: 1 } } })
+      .catch((error) => console.error('Product click increment error:', error));
+
     return NextResponse.json({ success: true, data: presented, product: presented });
   } catch (error) {
     console.error('Product fetch error:', error);
