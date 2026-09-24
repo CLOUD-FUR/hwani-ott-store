@@ -2,7 +2,6 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import ContactWidget from '@/app/components/ContactWidget';
 import Header, { CartProvider } from '@/app/components/Header';
 
 type Item = { id: string; quantity: number; product: { id: string; name: string; salePrice: number; images: string[] }; option: { id: string; name: string; price: number } | null };
@@ -160,7 +159,6 @@ export default function CheckoutPage() {
           </aside>
         </div>
       </div>
-      <ContactWidget />
     </main>
   );
 }

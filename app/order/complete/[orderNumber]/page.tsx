@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Copy, Check } from 'lucide-react';
-import ContactWidget from '@/app/components/ContactWidget';
 
 type Product = { name: string; images: string[]; salePrice: number };
 type Option = { id: string; name: string; price: number } | null;
