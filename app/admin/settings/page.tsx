@@ -60,7 +60,26 @@ export default function AdminSettingsPage() {
 
       const data = await res.json();
       if (data.data) {
-        setSettings(data.data);
+        // Map API response to the page's Settings interface fields only.
+        // The API spreads raw prisma fields (e.g. kakaotalkUrl) alongside
+        // the mapped names (kakaoChannelUrl); keeping only the mapped names
+        // prevents stale raw fields from shadowing user edits on save.
+        setSettings({
+          storeName: data.data.storeName || '화니 OTT',
+          storeDescription: data.data.storeDescription || '',
+          kakaoChannelUrl: data.data.kakaoChannelUrl || '',
+          channelTalkUrl: data.data.channelTalkUrl || '',
+          bankName: data.data.bankName || '',
+          bankAccount: data.data.bankAccount || '',
+          bankHolder: data.data.bankHolder || '',
+          smtpHost: data.data.smtpHost || 'smtp.gmail.com',
+          smtpPort: data.data.smtpPort || 587,
+          smtpUser: data.data.smtpUser || '',
+          smtpPassword: '',
+          googleClientId: data.data.googleClientId || '',
+          googleClientSecret: '',
+          googleRedirectUri: data.data.googleRedirectUri || '',
+        });
       }
     } catch (error) {
       console.error('Settings fetch error:', error);

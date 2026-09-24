@@ -20,8 +20,15 @@ export async function GET(
       return NextResponse.json({ success: false, error: '상품을 찾을 수 없습니다.' }, { status: 404 });
     }
 
+    const presented = {
+      ...product,
+      image: product.images[0] || '',
+      price: product.salePrice,
+      isAvailable: product.isVisible,
+    };
+
     await prisma.product.update({ where: { id }, data: { clicks: { increment: 1 } } });
-    return NextResponse.json({ success: true, data: product, product });
+    return NextResponse.json({ success: true, data: presented, product: presented });
   } catch (error) {
     console.error('Product fetch error:', error);
     return NextResponse.json({ success: false, error: '상품을 불러오는 중 오류가 발생했습니다.' }, { status: 500 });

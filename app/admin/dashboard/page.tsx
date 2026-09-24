@@ -248,7 +248,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* 빠른 액세스 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <button
             onClick={() => router.push('/admin/orders')}
             className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-sky-500 transition text-left"
@@ -265,15 +265,6 @@ export default function AdminDashboard() {
             <div className="text-2xl mb-2">🛍️</div>
             <div className="text-lg font-bold mb-1">상품 관리</div>
             <div className="text-sm text-slate-400">상품 등록 및 수정</div>
-          </button>
-
-          <button
-            onClick={() => router.push('/admin/users')}
-            className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-sky-500 transition text-left"
-          >
-            <div className="text-2xl mb-2">👥</div>
-            <div className="text-lg font-bold mb-1">사용자 관리</div>
-            <div className="text-sm text-slate-400">회원 정보 및 등급</div>
           </button>
         </div>
       </div>

@@ -25,6 +25,7 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetch(`/api/products/${params.id}`)
@@ -50,13 +51,25 @@ export default function ProductDetailPage() {
     return basePrice * quantity;
   };
 
-  const handlePurchase = async () => {
-    if (!product) return;
+  const handleAddToCart = async () => {
+    if (!product || isSubmitting) return;
     const option = product.options?.find((item) => item.id === selectedOption);
+    setIsSubmitting(true);
     const response = await fetch('/api/cart', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productId: product.id, optionId: option?.id || null, quantity }) });
     if (response.status === 401) { router.push(`/auth/login?redirect=/products/${product.id}`); return; }
-    if (!response.ok) { const data = await response.json().catch(() => ({})); alert(data.error || '장바구니에 담지 못했습니다.'); return; }
+    if (!response.ok) { const data = await response.json().catch(() => ({})); alert(data.error || '장바구니에 담지 못했습니다.'); setIsSubmitting(false); return; }
     router.push('/cart');
+  };
+
+  const handlePurchase = () => {
+    if (!product || isSubmitting) return;
+    const option = product.options?.find((item) => item.id === selectedOption);
+    sessionStorage.setItem('checkoutDirect', JSON.stringify({
+      productId: product.id,
+      optionId: option?.id || null,
+      quantity,
+    }));
+    router.push('/checkout');
   };
 
   if (loading) {
@@ -103,10 +116,10 @@ export default function ProductDetailPage() {
             </Link>
 
             <nav className="flex items-center gap-6">
-              <Link href="/products" className="text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
+              <Link href="/products" className="text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium whitespace-nowrap shrink-0">
                 상품
               </Link>
-              <Link href="/auth/login" className="text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
+              <Link href="/auth/login" className="text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium whitespace-nowrap shrink-0">
                 로그인
               </Link>
             </nav>
@@ -193,14 +206,14 @@ export default function ProductDetailPage() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-10 h-10 bg-slate-50 border border-slate-200 rounded-lg text-white hover:bg-slate-700 transition-colors"
+                    className="w-10 h-10 bg-slate-100 border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-700 hover:text-white transition-colors"
                   >
                     -
                   </button>
                   <span className="w-16 text-center text-slate-900 font-medium">{quantity}</span>
                   <button
                     onClick={() => setQuantity(quantity + 1)}
-                    className="w-10 h-10 bg-slate-50 border border-slate-200 rounded-lg text-white hover:bg-slate-700 transition-colors"
+                    className="w-10 h-10 bg-slate-100 border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-700 hover:text-white transition-colors"
                   >
                     +
                   </button>
@@ -218,17 +231,30 @@ export default function ProductDetailPage() {
                 </div>
               </div>
 
-              {/* Purchase Button */}
+              {/* 구매하기 (Buy Now) */}
               <button
                 onClick={handlePurchase}
-                disabled={!(product.isVisible ?? product.isAvailable)}
-                className={`w-full py-4 rounded-xl font-semibold text-white transition-all ${
-                  (product.isVisible ?? product.isAvailable)
+                disabled={!(product.isVisible ?? product.isAvailable) || isSubmitting}
+                className={`w-full py-4 rounded-xl font-semibold text-white transition-all mb-3 ${
+                  (product.isVisible ?? product.isAvailable) && !isSubmitting
                     ? 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg hover:shadow-[#F97316]/20'
                     : 'bg-slate-300 cursor-not-allowed'
                 }`}
               >
-                {(product.isVisible ?? product.isAvailable) ? '구매하기' : '품절'}
+                {isSubmitting ? '처리 중...' : !(product.isVisible ?? product.isAvailable) ? '품절' : '구매하기'}
+              </button>
+
+              {/* 장바구니 담기 (Add to Cart) */}
+              <button
+                onClick={handleAddToCart}
+                disabled={!(product.isVisible ?? product.isAvailable) || isSubmitting}
+                className={`w-full py-4 rounded-xl font-semibold text-white transition-all ${
+                  (product.isVisible ?? product.isAvailable) && !isSubmitting
+                    ? 'bg-gray-800 hover:bg-gray-900'
+                    : 'bg-slate-300 cursor-not-allowed'
+                }`}
+              >
+                {isSubmitting ? '담는 중...' : !(product.isVisible ?? product.isAvailable) ? '품절' : '장바구니 담기'}
               </button>
 
               {/* Info */}

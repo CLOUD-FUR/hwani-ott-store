@@ -51,7 +51,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-purple-50/20">
-      {notice && <div className="fixed inset-x-4 top-20 z-[60] mx-auto max-w-xl overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-2xl"><div className="flex items-start justify-between gap-4 p-5"> <div><p className="text-xs font-semibold text-blue-600">공지사항</p><h2 className="mt-1 text-lg font-bold text-gray-900">{notice.title}</h2>{notice.image && (<img src={notice.image} alt={notice.title} className="mt-3 w-full h-28 object-cover rounded-lg border border-blue-100" />)}<p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-gray-600">{notice.content}</p>{notice.link?.startsWith('https://') && <a href={notice.link} target="_blank" rel="noreferrer" className="mt-3 inline-block text-sm font-semibold text-blue-600">자세히 보기 →</a>}</div><button onClick={() => setNotice(null)} aria-label="공지 닫기" className="rounded-lg p-1 text-gray-400 hover:bg-gray-100"><X className="h-5 w-5" /></button></div><button onClick={() => { localStorage.setItem(`notice-hidden-${notice.id}`, new Date().toISOString().slice(0, 10)); setNotice(null); }} className="w-full border-t border-gray-100 px-5 py-3 text-left text-xs text-gray-500">오늘 하루 보지 않기</button></div>}
+      {notice && <div className="fixed inset-x-4 top-20 z-[60] mx-auto max-w-xl overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-2xl"><div className="flex items-start justify-between gap-4 p-5"> <div><p className="text-xs font-semibold text-blue-600">공지사항</p><h2 className="mt-1 text-lg font-bold text-gray-900">{notice.title}</h2>{notice.image && (<img src={notice.image} alt={notice.title} className="mt-3 w-full h-28 object-cover rounded-lg border border-blue-100" />)}<p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-gray-600">{notice.content}</p>{notice.link?.startsWith('https://') && <a href={notice.link} target="_blank" rel="noreferrer" className="mt-3 inline-block text-sm font-semibold text-blue-600">자세히 보기 →</a>}</div><button onClick={() => setNotice(null)} aria-label="공지 닫기" className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 min-h-[44px] min-w-[44px] flex items-center justify-center"><X className="h-5 w-5" /></button></div><button onClick={() => { localStorage.setItem(`notice-hidden-${notice.id}`, new Date().toISOString().slice(0, 10)); setNotice(null); }} className="w-full border-t border-gray-100 px-5 py-3 text-left text-xs text-gray-500">오늘 하루 보지 않기</button></div>}
       <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/85 backdrop-blur-xl">
         <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between px-6">
           <Link href="/" className="flex items-center gap-2.5">
@@ -61,7 +61,7 @@ export default function HomePage() {
           <nav className="flex items-center gap-7 text-sm font-medium text-gray-600">
             <Link href="/products" className="transition hover:text-blue-600">상품</Link>
             <Link href="/auth/login" className="transition hover:text-blue-600">로그인</Link>
-            <Link href="/auth/login" className="rounded-xl bg-gray-900 px-5 py-2.5 text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-600">시작하기</Link>
+            <Link href="/auth/login" className="rounded-xl bg-gray-900 px-5 py-2.5 text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-600 whitespace-nowrap shrink-0 min-h-[44px]">시작하기</Link>
           </nav>
         </div>
       </header>

@@ -55,6 +55,8 @@ model Product {
   order       Int      @default(0) // 순서
   clicks      Int      @default(0) // 클릭 수
   sales       Int      @default(0) // 판매 수
+  category    String?  // 카테고리
+  keywords    String?  // 검색 키워드 (공백으로 구분)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -64,6 +66,7 @@ model Product {
 
   @@index([isVisible])
   @@index([order])
+  @@index([category])
 }
 
 model ProductOption {

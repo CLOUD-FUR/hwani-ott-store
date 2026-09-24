@@ -151,13 +151,13 @@ export default function AdminProductsPage() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => router.push(`/admin/products/${product.id}`)}
-                      className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded transition text-sm"
+                      className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded transition text-sm whitespace-nowrap"
                     >
                       수정
                     </button>
                     <button
                       onClick={() => handleToggleAvailability(product.id, product.isAvailable)}
-                      className={`flex-1 px-4 py-2 rounded transition text-sm ${
+                      className={`flex-1 px-4 py-2 rounded transition text-sm whitespace-nowrap ${
                         product.isAvailable
                           ? 'bg-orange-500 hover:bg-orange-600'
                           : 'bg-emerald-500 hover:bg-emerald-600'
@@ -167,7 +167,7 @@ export default function AdminProductsPage() {
                     </button>
                     <button
                       onClick={() => handleDelete(product.id)}
-                      className="px-4 py-2 bg-red-500 hover:bg-red-600 rounded transition text-sm"
+                      className="px-4 py-2 bg-red-500 hover:bg-red-600 rounded transition text-sm whitespace-nowrap"
                     >
                       삭제
                     </button>

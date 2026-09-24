@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import ContactWidget from "./components/ContactWidget";
 
 export const metadata: Metadata = {
   title: {
@@ -83,6 +84,7 @@ export default function RootLayout({
       </head>
       <body className="font-gmarket antialiased">
         {children}
+        <ContactWidget />
       </body>
     </html>
   );

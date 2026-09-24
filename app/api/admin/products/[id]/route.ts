@@ -5,7 +5,7 @@ import { createLog } from '@/lib/logger';
 import { LogType } from '@prisma/client';
 
 type InputOption = { name: string; price?: number; stock?: number };
-type ProductInput = { name?: string; description?: string; images?: string[]; image?: string; originalPrice?: number; salePrice?: number; price?: number; isVisible?: boolean; isAvailable?: boolean; isDraft?: boolean; order?: number; options?: InputOption[] };
+type ProductInput = { name?: string; description?: string; images?: string[]; image?: string; originalPrice?: number; salePrice?: number; price?: number; isVisible?: boolean; isAvailable?: boolean; isDraft?: boolean; order?: number; category?: string | null; keywords?: string | null; options?: InputOption[] };
 
 function present(product: { images: string[]; salePrice: number; isVisible: boolean } & Record<string, unknown>) {
   return { ...product, image: product.images[0] || '', price: product.salePrice, isAvailable: product.isVisible };
@@ -37,6 +37,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       isVisible: input.isVisible ?? input.isAvailable ?? current.isVisible,
       isDraft: input.isDraft ?? current.isDraft,
       order: Number(input.order ?? current.order),
+      category: input.category !== undefined ? (input.category?.trim() || null) : current.category,
+      keywords: input.keywords !== undefined ? (input.keywords?.trim() || null) : current.keywords,
     };
     const product = await prisma.$transaction(async (tx) => {
       if (input.options) await tx.productOption.deleteMany({ where: { productId: id } });

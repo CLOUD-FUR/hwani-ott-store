@@ -10,7 +10,7 @@ interface Log {
   userId: string | null;
   email: string | null;
   action: string;
-  details: string | null;
+  details: unknown;
   ipAddress: string | null;
   userAgent: string | null;
   createdAt: string;
@@ -211,7 +211,15 @@ export default function AdminLogsPage() {
                               상세 보기
                             </summary>
                             <pre className="mt-2 text-xs bg-slate-800/50 p-2 rounded overflow-x-auto">
-                              {JSON.stringify(JSON.parse(log.details), null, 2)}
+                              {typeof log.details === "string"
+                                ? (() => {
+                                    try {
+                                      return JSON.stringify(JSON.parse(log.details), null, 2);
+                                    } catch {
+                                      return log.details;
+                                    }
+                                  })()
+                                : JSON.stringify(log.details, null, 2)}
                             </pre>
                           </details>
                         ) : (

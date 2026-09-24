@@ -117,12 +117,12 @@ export default function AdminOrdersPage() {
         <h1 className="text-3xl font-bold mb-8">주문 관리</h1>
 
         {/* 필터 */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex flex-wrap gap-2 mb-6">
           {['all', 'PENDING', 'APPROVED', 'REJECTED', 'COMPLETED', 'CANCELLED'].map((status) => (
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
-              className={`px-4 py-2 rounded-lg transition ${
+              className={`px-4 py-2 rounded-lg transition whitespace-nowrap ${
                 statusFilter === status
                   ? 'bg-sky-500 text-white'
                   : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
@@ -192,13 +192,13 @@ export default function AdminOrdersPage() {
                     <>
                       <button
                         onClick={() => handleStatusChange(order.id, 'APPROVED')}
-                        className="px-4 py-2 bg-sky-500 hover:bg-sky-600 rounded transition"
+                        className="px-4 py-2 bg-sky-500 hover:bg-sky-600 rounded transition whitespace-nowrap"
                       >
                         입금 승인
                       </button>
                       <button
                         onClick={() => handleStatusChange(order.id, 'REJECTED')}
-                        className="px-4 py-2 bg-red-500 hover:bg-red-600 rounded transition"
+                        className="px-4 py-2 bg-red-500 hover:bg-red-600 rounded transition whitespace-nowrap"
                       >
                         거절
                       </button>
@@ -207,7 +207,7 @@ export default function AdminOrdersPage() {
                   {order.status === 'APPROVED' && (
                     <button
                       onClick={() => setSelectedOrder(order)}
-                      className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 rounded transition"
+                      className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 rounded transition whitespace-nowrap"
                     >
                       완료 처리
                     </button>
@@ -240,7 +240,7 @@ export default function AdminOrdersPage() {
             <div className="flex gap-2 mt-6">
               <button
                 onClick={() => handleStatusChange(selectedOrder.id, 'COMPLETED')}
-                className="flex-1 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 rounded transition"
+                className="flex-1 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 rounded transition whitespace-nowrap"
               >
                 완료 처리
               </button>
@@ -250,7 +250,7 @@ export default function AdminOrdersPage() {
                   setDeliveryInfo('');
         setRejectionReason('');
                 }}
-                className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded transition"
+                className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded transition whitespace-nowrap"
               >
                 취소
               </button>

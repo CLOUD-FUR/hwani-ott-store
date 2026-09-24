@@ -181,7 +181,8 @@ export default function AdminUsersPage() {
           </div>
         ) : (
           <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px]">
               <thead className="bg-slate-800/50">
                 <tr>
                   <th className="px-4 py-3 text-left text-sm font-medium">고유번호</th>
@@ -226,13 +227,13 @@ export default function AdminUsersPage() {
                             setSelectedUser(user);
                             setNewTier(user.tier);
                           }}
-                          className="px-3 py-1 bg-sky-500 hover:bg-sky-600 rounded text-sm transition"
+                          className="px-3 py-1 bg-sky-500 hover:bg-sky-600 rounded text-sm transition whitespace-nowrap"
                         >
                           등급
                         </button>
                         <button
                           onClick={() => handleBlacklistToggle(user.id, user.isBlacklisted)}
-                          className={`px-3 py-1 rounded text-sm transition ${
+                          className={`px-3 py-1 rounded text-sm transition whitespace-nowrap ${
                             user.isBlacklisted
                               ? 'bg-emerald-500 hover:bg-emerald-600'
                               : 'bg-red-500 hover:bg-red-600'
@@ -246,6 +247,7 @@ export default function AdminUsersPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>

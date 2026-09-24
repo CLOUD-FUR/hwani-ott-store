@@ -13,24 +13,36 @@ interface Product {
   originalPrice: number;
   salePrice: number;
   isVisible?: boolean;
+  category?: string | null;
+  keywords?: string | null;
 }
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('recommended');
+  const [selectedCategory, setSelectedCategory] = useState<string | ''>('');
 
   useEffect(() => {
-    fetch('/api/products')
+    const params = new URLSearchParams();
+    if (selectedCategory) params.set('category', selectedCategory);
+    if (search) params.set('q', search);
+    const qs = params.toString();
+
+    setLoading(true);
+    fetch(`/api/products${qs ? `?${qs}` : ''}`)
       .then((res) => res.json())
-      .then((data) => setProducts(data.products || []))
+      .then((data) => {
+        setProducts(data.products || []);
+        setCategories(data.categories || []);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [selectedCategory, search]);
 
   const filteredProducts = products
-    .filter((product) => `${product.name} ${product.description}`.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
       if (sort === 'low') return a.salePrice - b.salePrice;
       if (sort === 'high') return b.salePrice - a.salePrice;
@@ -48,7 +60,7 @@ export default function ProductsPage() {
           <nav className="flex items-center gap-7 text-sm font-medium text-gray-600">
             <Link href="/products" className="text-blue-600">상품</Link>
             <Link href="/auth/login" className="transition hover:text-blue-600">로그인</Link>
-            <Link href="/auth/login" className="rounded-xl bg-gray-900 px-5 py-2.5 text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-600">시작하기</Link>
+            <Link href="/auth/login" className="rounded-xl bg-gray-900 px-5 py-2.5 text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-600 whitespace-nowrap shrink-0 min-h-[44px]">시작하기</Link>
           </nav>
         </div>
       </header>
@@ -92,6 +104,34 @@ export default function ProductsPage() {
             </div>
           </div>
 
+          {categories.length > 0 && (
+            <div className="mb-6 flex flex-wrap gap-2">
+              <button
+                onClick={() => setSelectedCategory('')}
+                className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                  selectedCategory === ''
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                전체
+              </button>
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                    selectedCategory === cat
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          )}
+
           {loading ? (
             <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3">
               {[1, 2, 3].map((item) => <div key={item} className="h-[390px] animate-pulse rounded-3xl bg-gray-100" />)}
@@ -101,11 +141,11 @@ export default function ProductsPage() {
               <PackageOpen className="mx-auto h-12 w-12 text-gray-300" />
               <h3 className="mt-5 text-xl font-bold text-gray-900">상품이 아직 없어요</h3>
               <p className="mt-2 text-gray-500">관리자가 상품을 등록하면 이곳에 표시됩니다.</p>
-              <Link href="/" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gray-900 px-5 py-3 text-sm font-medium text-white">홈으로 돌아가기 <ArrowRight className="h-4 w-4" /></Link>
+              <Link href="/" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gray-900 px-5 py-3 text-sm font-medium text-white whitespace-nowrap">홈으로 돌아가기 <ArrowRight className="h-4 w-4" /></Link>
             </div>
           ) : (
             <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredProducts.map((product, index) => {
+              {filteredProducts.map((product) => {
                 const discount = product.originalPrice > product.salePrice ? Math.round((1 - product.salePrice / product.originalPrice) * 100) : 0;
                 return (
                   <Link key={product.id} href={`/products/${product.id}`} className="group overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition duration-500 hover:-translate-y-2 hover:shadow-[0_20px_45px_rgb(37,99,235,0.12)]">

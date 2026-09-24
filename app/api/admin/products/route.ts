@@ -16,6 +16,8 @@ type ProductInput = {
   isAvailable?: boolean;
   isDraft?: boolean;
   order?: number;
+  category?: string | null;
+  keywords?: string | null;
   options?: Array<{ name: string; price?: number; stock?: number }>;
 };
 
@@ -30,6 +32,8 @@ function normalize(input: ProductInput) {
     isVisible: input.isVisible ?? input.isAvailable ?? true,
     isDraft: input.isDraft ?? false,
     order: Number(input.order ?? 0),
+    category: input.category?.trim() || null,
+    keywords: input.keywords?.trim() || null,
     options: Array.isArray(input.options) ? input.options : [],
   };
 }
@@ -63,6 +67,7 @@ export async function POST(request: Request) {
         name: input.name, description: input.description, images: input.images,
         originalPrice: input.originalPrice, salePrice: input.salePrice,
         isVisible: input.isVisible, isDraft: input.isDraft, order: input.order,
+        category: input.category, keywords: input.keywords,
         options: { create: input.options.map((option, index) => ({ name: option.name.trim(), price: Number(option.price ?? 0), stock: Number(option.stock ?? 999), order: index })) },
       }, include: { options: true },
     });

@@ -20,7 +20,17 @@ export default function AdminProductFormPage() {
     price: 0,
     image: '',
     isAvailable: true,
+    category: '',
+    keywords: '',
   });
+  const [existingCategories, setExistingCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch('/api/products')
+      .then((res) => res.json())
+      .then((data) => setExistingCategories(data.categories || []))
+      .catch(() => {});
+  }, []);
   const [options, setOptions] = useState<ProductOption[]>([]);
   const [newOption, setNewOption] = useState({ name: '', price: 0 });
   const [loading, setLoading] = useState(false);
@@ -46,6 +56,8 @@ export default function AdminProductFormPage() {
           price: data.data.price,
           image: data.data.image || '',
           isAvailable: data.data.isAvailable,
+          category: data.data.category || '',
+          keywords: data.data.keywords || '',
         });
         setOptions(data.data.options || []);
       }
@@ -211,6 +223,36 @@ export default function AdminProductFormPage() {
                 required
                 min="0"
                 placeholder="10000"
+                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-sky-500"
+              />
+            </div>
+
+            {/* 카테고리 */}
+            <div>
+              <label className="block text-sm font-medium mb-2">카테고리</label>
+              <input
+                type="text"
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                placeholder="예: Netflix, Disney+"
+                list="category-list-edit"
+                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-sky-500"
+              />
+              <datalist id="category-list-edit">
+                {existingCategories.map((cat) => (
+                  <option key={cat} value={cat} />
+                ))}
+              </datalist>
+            </div>
+
+            {/* 키워드 */}
+            <div>
+              <label className="block text-sm font-medium mb-2">키워드</label>
+              <input
+                type="text"
+                value={formData.keywords}
+                onChange={(e) => setFormData({ ...formData, keywords: e.target.value })}
+                placeholder="검색 키워드 (공백으로 구분)"
                 className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-sky-500"
               />
             </div>

@@ -12,6 +12,8 @@ type OrderRequestItem = {
   quantity: number;
 };
 
+const MAX_RETRIES = 3;
+
 export async function POST(request: Request) {
   try {
     const sessionToken = (await cookies()).get('session')?.value;
@@ -50,58 +52,78 @@ export async function POST(request: Request) {
     }
 
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const result = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({ where: { id: userId } });
-      if (!user) throw new Error('USER_NOT_FOUND');
-      if (user.isBlacklisted) throw new Error('BLACKLISTED');
 
-      const recentOrdersCount = await tx.order.count({ where: { userId, createdAt: { gte: oneDayAgo } } });
-      if (recentOrdersCount >= 10) throw new Error('ORDER_LIMIT');
+    let result;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        result = await prisma.$transaction(async (tx) => {
+          const user = await tx.user.findUnique({ where: { id: userId } });
+          if (!user) throw new Error('USER_NOT_FOUND');
+          if (user.isBlacklisted) throw new Error('BLACKLISTED');
 
-      const tierConfig = await tx.tierConfig.findUnique({ where: { tier: user.tier } });
-      const discountRate = tierConfig?.discountRate || 0;
-      let totalAmount = 0;
-      const orderItemsData: Array<{ productId: string; optionId: string | null; quantity: number; price: number; discount: number }> = [];
+          const recentOrdersCount = await tx.order.count({ where: { userId, createdAt: { gte: oneDayAgo } } });
+          if (recentOrdersCount >= 10) throw new Error('ORDER_LIMIT');
 
-      for (const item of normalizedItems) {
-        const product = await tx.product.findUnique({ where: { id: item.productId }, include: { options: true } });
-        if (!product || !product.isVisible || product.isDraft) throw new Error('PRODUCT_NOT_AVAILABLE');
-        const option = item.optionId ? product.options.find((candidate) => candidate.id === item.optionId) : null;
-        if (item.optionId && !option) throw new Error('OPTION_NOT_FOUND');
-        if (option && option.stock < item.quantity) throw new Error('OUT_OF_STOCK');
-        const basePrice = product.salePrice + (option?.price || 0);
-        const discount = Math.floor(basePrice * discountRate / 100);
-        const finalPrice = basePrice - discount;
-        totalAmount += finalPrice * item.quantity;
-        orderItemsData.push({ productId: item.productId, optionId: item.optionId ?? null, quantity: item.quantity, price: finalPrice, discount });
+          const tierConfig = await tx.tierConfig.findUnique({ where: { tier: user.tier } });
+          const discountRate = tierConfig?.discountRate || 0;
+          let totalAmount = 0;
+          const orderItemsData: Array<{ productId: string; optionId: string | null; quantity: number; price: number; discount: number }> = [];
+
+          for (const item of normalizedItems) {
+            const product = await tx.product.findUnique({ where: { id: item.productId }, include: { options: true } });
+            if (!product || !product.isVisible || product.isDraft) throw new Error('PRODUCT_NOT_AVAILABLE');
+            const option = item.optionId ? product.options.find((candidate) => candidate.id === item.optionId) : null;
+            if (item.optionId && !option) throw new Error('OPTION_NOT_FOUND');
+            if (option && option.stock < item.quantity) throw new Error('OUT_OF_STOCK');
+            const basePrice = product.salePrice + (option?.price || 0);
+            const discount = Math.floor(basePrice * discountRate / 100);
+            const finalPrice = basePrice - discount;
+            totalAmount += finalPrice * item.quantity;
+            orderItemsData.push({ productId: item.productId, optionId: item.optionId ?? null, quantity: item.quantity, price: finalPrice, discount });
+          }
+
+          const sequenceUser = await tx.user.update({
+            where: { id: userId },
+            data: { purchaseSequence: { increment: 1 } },
+            select: { uniqueId: true, purchaseSequence: true },
+          });
+          const orderNumber = generateOrderNumber(sequenceUser.uniqueId, sequenceUser.purchaseSequence - 1);
+          const settings = await tx.settings.findUnique({ where: { id: 'settings' } });
+          const accountInfo = {
+            bankName: settings?.bankName || '미설정',
+            bankAccount: settings?.bankAccount || '미설정',
+            accountHolder: settings?.accountHolder || '미설정',
+          };
+          const order = await tx.order.create({
+            data: {
+              orderNumber, userId, userEmail: user.email, depositorName, totalAmount, accountInfo,
+              orderItems: { create: orderItemsData },
+            },
+            include: { orderItems: { include: { product: true, option: true } } },
+          });
+
+          // Delete only the exact cart lines submitted for this order.
+          for (const item of normalizedItems) {
+            await tx.cartItem.deleteMany({ where: { userId, productId: item.productId, optionId: item.optionId } });
+          }
+          return { order, user, orderNumber, totalAmount, orderItemsData, accountInfo, discountRate };
+        }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+        break; // Success — exit retry loop
+      } catch (error) {
+        // Retry only on serialization write conflicts (P2034)
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2034' &&
+          attempt < MAX_RETRIES
+        ) {
+          await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 100));
+          continue;
+        }
+        throw error;
       }
+    }
 
-      const sequenceUser = await tx.user.update({
-        where: { id: userId },
-        data: { purchaseSequence: { increment: 1 } },
-        select: { uniqueId: true, purchaseSequence: true },
-      });
-      const orderNumber = generateOrderNumber(sequenceUser.uniqueId, sequenceUser.purchaseSequence - 1);
-      const settings = await tx.settings.findUnique({ where: { id: 'settings' } });
-      const accountInfo = {
-        bankName: settings?.bankName || '미설정',
-        bankAccount: settings?.bankAccount || '미설정',
-        accountHolder: settings?.accountHolder || '미설정',
-      };
-      const order = await tx.order.create({
-        data: {
-          orderNumber, userId, userEmail: user.email, depositorName, totalAmount, accountInfo,
-          orderItems: { create: orderItemsData },
-        },
-        include: { orderItems: { include: { product: true, option: true } } },
-      });
-
-      // Delete only the exact cart lines submitted for this order.
-      for (const item of normalizedItems) {
-        await tx.cartItem.deleteMany({ where: { userId, productId: item.productId, optionId: item.optionId } });
-      }
-      return { order, user, orderNumber, totalAmount, orderItemsData, accountInfo, discountRate };
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    if (!result) throw new Error('TRANSACTION_FAILED');
 
     try {
       await sendOrderConfirmationEmail(result.user.email, result.orderNumber, {
@@ -121,6 +143,16 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ success: true, message: '주문이 접수되었습니다.', data: result.order });
   } catch (error) {
+    // Handle Prisma errors (e.g., serialization failures, constraint violations)
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      console.error('Prisma error during order creation:', error);
+      if (error.code === 'P2034') {
+        return NextResponse.json({ success: false, error: '동시 주문 충돌이 발생했습니다. 잠시 후 다시 시도해주세요.' }, { status: 409 });
+      }
+      return NextResponse.json({ success: false, error: '주문 처리 중 데이터베이스 오류가 발생했습니다.' }, { status: 500 });
+    }
+
+    // Existing custom error code mapping (thrown as Error messages)
     const errorCode = error instanceof Error ? error.message : '';
     const messages: Record<string, [string, number]> = {
       USER_NOT_FOUND: ['사용자를 찾을 수 없습니다.', 404],
@@ -129,11 +161,13 @@ export async function POST(request: Request) {
       PRODUCT_NOT_AVAILABLE: ['판매 중인 상품만 주문할 수 있습니다.', 400],
       OPTION_NOT_FOUND: ['상품 옵션을 찾을 수 없습니다.', 400],
       OUT_OF_STOCK: ['상품 재고가 부족합니다.', 409],
+      TRANSACTION_FAILED: ['트랜잭션 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 500],
     };
     if (messages[errorCode]) {
       const [message, status] = messages[errorCode];
       return NextResponse.json({ success: false, error: message }, { status });
     }
+    // Unknown errors — log full details server-side, return generic message
     console.error('Order creation error:', error);
     return NextResponse.json({ success: false, error: '주문 생성 중 오류가 발생했습니다.' }, { status: 500 });
   }
