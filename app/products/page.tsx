@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, ChevronDown, Filter, PackageOpen, Search, Sparkles } from 'lucide-react';
+import Header, { CartProvider } from '../components/Header';
 
 interface Product {
   id: string;
@@ -51,19 +52,9 @@ export default function ProductsPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/90 backdrop-blur-xl">
-        <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between px-6">
-          <Link href="/" className="flex items-center gap-2.5">
-            <Image src="/OTT.png" alt="화니 OTT" width={42} height={42} className="h-10 w-10 rounded-xl object-contain" priority />
-            <span className="text-xl font-bold tracking-tight text-gray-900">화니 OTT</span>
-          </Link>
-          <nav className="flex items-center gap-7 text-sm font-medium text-gray-600">
-            <Link href="/products" className="text-blue-600">상품</Link>
-            <Link href="/auth/login" className="transition hover:text-blue-600">로그인</Link>
-            <Link href="/auth/login" className="rounded-xl bg-gray-900 px-5 py-2.5 text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-600 whitespace-nowrap shrink-0 min-h-[44px]">시작하기</Link>
-          </nav>
-        </div>
-      </header>
+      <CartProvider>
+        <Header />
+      </CartProvider>
 
       <main>
         <section className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-violet-50/70 px-6 pb-16 pt-20">

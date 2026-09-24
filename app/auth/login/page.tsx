@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import GoogleButton from '@/app/components/GoogleButton';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -69,17 +70,7 @@ export default function LoginPage() {
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-xl shadow-gray-200/50">
-            <button
-              onClick={handleGoogleLogin}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3.5 bg-white hover:bg-gray-50 text-gray-800 rounded-xl font-medium transition-colors mb-6 border border-gray-300 shadow-sm"
-            >
-              <span className="relative flex h-5 w-5 items-center justify-center" aria-hidden="true">
-                <span className="absolute h-5 w-5 rounded-full border-[3px] border-[#4285F4] border-r-[#EA4335] border-b-[#FBBC05]" />
-                <span className="absolute right-[-1px] top-[1px] h-[7px] w-[9px] bg-white" />
-                <span className="absolute right-[-1px] top-[8px] h-[3px] w-[9px] bg-[#4285F4]" />
-              </span>
-              <span>Google로 계속하기</span>
-            </button>
+            <GoogleButton onClick={handleGoogleLogin} />
 
             <div className="relative mb-6">
               <div className="absolute inset-0 flex items-center">

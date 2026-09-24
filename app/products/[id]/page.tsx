@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import Header, { CartProvider, useCart } from '@/app/components/Header';
 
 interface Product {
   id: string;
@@ -18,28 +19,20 @@ interface Product {
   options?: { id: string; name: string; price: number }[];
 }
 
-export default function ProductDetailPage() {
-  const params = useParams();
+function ProductDetailContent({ product }: { product: Product }) {
   const router = useRouter();
-  const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(true);
+  const params = useParams();
+  const { refreshCartCount } = useCart();
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [addedToCart, setAddedToCart] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/products/${params.id}`)
-      .then(res => res.json())
-      .then(data => {
-        const loaded = data.product || data.data;
-        setProduct(loaded);
-        if (loaded?.options && loaded.options.length > 0) {
-          setSelectedOption(loaded.options[0].id);
-        }
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [params.id]);
+    if (product?.options && product.options.length > 0) {
+      setSelectedOption(product.options[0].id);
+    }
+  }, [product]);
 
   const getTotalPrice = () => {
     if (!product) return 0;
@@ -55,10 +48,27 @@ export default function ProductDetailPage() {
     if (!product || isSubmitting) return;
     const option = product.options?.find((item) => item.id === selectedOption);
     setIsSubmitting(true);
-    const response = await fetch('/api/cart', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productId: product.id, optionId: option?.id || null, quantity }) });
-    if (response.status === 401) { router.push(`/auth/login?redirect=/products/${product.id}`); return; }
-    if (!response.ok) { const data = await response.json().catch(() => ({})); alert(data.error || '장바구니에 담지 못했습니다.'); setIsSubmitting(false); return; }
-    router.push('/cart');
+    const response = await fetch('/api/cart', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productId: product.id, optionId: option?.id || null, quantity }),
+    });
+    if (response.status === 401) {
+      router.push(`/auth/login?redirect=/products/${product.id}`);
+      setIsSubmitting(false);
+      return;
+    }
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      alert(data.error || '장바구니에 담지 못했습니다.');
+      setIsSubmitting(false);
+      return;
+    }
+    // Success: refresh cart count via context, show success feedback, do NOT redirect
+    refreshCartCount();
+    setAddedToCart(true);
+    setIsSubmitting(false);
+    setTimeout(() => setAddedToCart(false), 2500);
   };
 
   const handlePurchase = () => {
@@ -72,61 +82,8 @@ export default function ProductDetailPage() {
     router.push('/checkout');
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#0F172A] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#38BDF8]"></div>
-      </div>
-    );
-  }
-
-  if (!product) {
-    return (
-      <div className="min-h-screen bg-[#f7f8fb] text-slate-900">
-        <header className="border-b border-slate-800/50 bg-[#0B0E14]/80 backdrop-blur-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <Link href="/" className="flex items-center gap-3">
-                <Image src="/OTT.png" alt="화니 OTT" width={42} height={42} className="h-10 w-10 rounded-xl object-contain" priority />
-                <span className="text-xl font-bold text-gray-900">화니 OTT</span>
-              </Link>
-            </div>
-          </div>
-        </header>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">상품을 찾을 수 없습니다</h1>
-          <Link href="/products" className="text-[#38BDF8] hover:text-[#0EA5E9]">
-            상품 목록으로 돌아가기
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-[#f7f8fb] text-slate-900">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/" className="flex items-center gap-3">
-              <Image src="/OTT.png" alt="화니 OTT" width={42} height={42} className="h-10 w-10 rounded-xl object-contain" priority />
-              <span className="text-xl font-bold text-slate-900">화니 OTT</span>
-            </Link>
-
-            <nav className="flex items-center gap-6">
-              <Link href="/products" className="text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium whitespace-nowrap shrink-0">
-                상품
-              </Link>
-              <Link href="/auth/login" className="text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium whitespace-nowrap shrink-0">
-                로그인
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
-
+    <>
       {/* Product Detail */}
       <section className="py-10 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -244,17 +201,17 @@ export default function ProductDetailPage() {
                 {isSubmitting ? '처리 중...' : !(product.isVisible ?? product.isAvailable) ? '품절' : '구매하기'}
               </button>
 
-              {/* 장바구니 담기 (Add to Cart) */}
+              {/* 장바구치 담기 (Add to Cart) */}
               <button
                 onClick={handleAddToCart}
-                disabled={!(product.isVisible ?? product.isAvailable) || isSubmitting}
+                disabled={!(product.isVisible ?? product.isAvailable) || isSubmitting || addedToCart}
                 className={`w-full py-4 rounded-xl font-semibold text-white transition-all ${
-                  (product.isVisible ?? product.isAvailable) && !isSubmitting
+                  (product.isVisible ?? product.isAvailable) && !isSubmitting && !addedToCart
                     ? 'bg-gray-800 hover:bg-gray-900'
                     : 'bg-slate-300 cursor-not-allowed'
                 }`}
               >
-                {isSubmitting ? '담는 중...' : !(product.isVisible ?? product.isAvailable) ? '품절' : '장바구니 담기'}
+                {isSubmitting ? '담는 중...' : addedToCart ? '✓ 담겼습니다' : !(product.isVisible ?? product.isAvailable) ? '품절' : '장바구니 담기'}
               </button>
 
               {/* Info */}
@@ -296,6 +253,50 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </footer>
-    </div>
+    </>
+  );
+}
+
+export default function ProductDetailPage() {
+  const params = useParams();
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/products/${params.id}`)
+      .then(res => res.json())
+      .then(data => {
+        const loaded = data.product || data.data;
+        setProduct(loaded);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [params.id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0F172A] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#38BDF8]"></div>
+      </div>
+    );
+  }
+
+  return (
+    <CartProvider>
+      <div className="min-h-screen bg-[#f7f8fb] text-slate-900">
+        <Header />
+
+        {!product ? (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 text-center">
+            <h1 className="text-2xl font-bold text-white mb-4">상품을 찾을 수 없습니다</h1>
+            <Link href="/products" className="text-[#38BDF8] hover:text-[#0EA5E9]">
+              상품 목록으로 돌아가기
+            </Link>
+          </div>
+        ) : (
+          <ProductDetailContent product={product} />
+        )}
+      </div>
+    </CartProvider>
   );
 }

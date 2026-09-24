@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import GoogleButton from '@/app/components/GoogleButton';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -13,6 +14,7 @@ export default function SignupPage() {
     confirmPassword: '',
     name: '',
   });
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -34,6 +36,11 @@ export default function SignupPage() {
       return;
     }
 
+    if (!termsAccepted) {
+      setError('약관에 동의해 주세요.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -44,6 +51,7 @@ export default function SignupPage() {
           email: formData.email,
           password: formData.password,
           name: formData.name,
+          termsAccepted,
         }),
       });
 
@@ -86,17 +94,7 @@ export default function SignupPage() {
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-xl shadow-gray-200/50">
-            <button
-              onClick={handleGoogleSignup}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3.5 bg-white hover:bg-gray-50 text-gray-800 rounded-xl font-medium transition-colors mb-6 border border-gray-300 shadow-sm"
-            >
-              <span className="relative flex h-5 w-5 items-center justify-center" aria-hidden="true">
-                <span className="absolute h-5 w-5 rounded-full border-[3px] border-[#4285F4] border-r-[#EA4335] border-b-[#FBBC05]" />
-                <span className="absolute right-[-1px] top-[1px] h-[7px] w-[9px] bg-white" />
-                <span className="absolute right-[-1px] top-[8px] h-[3px] w-[9px] bg-[#4285F4]" />
-              </span>
-              <span>Google로 계속하기</span>
-            </button>
+            <GoogleButton onClick={handleGoogleSignup} />
 
             <div className="relative mb-6">
               <div className="absolute inset-0 flex items-center">
@@ -170,6 +168,41 @@ export default function SignupPage() {
                   required
                   className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 transition-colors"
                 />
+              </div>
+
+              <div className="mb-6 flex items-start gap-3">
+                <div className="flex items-center h-5 mt-0.5">
+                  <input
+                    id="termsAccepted"
+                    name="termsAccepted"
+                    type="checkbox"
+                    checked={termsAccepted}
+                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-[#38BDF8] focus:ring-[#38BDF8] cursor-pointer"
+                  />
+                </div>
+                <label htmlFor="termsAccepted" className="block text-sm text-gray-700 cursor-pointer">
+                  <span>
+                    <Link
+                      href="/terms"
+                      className="text-[#38BDF8] hover:text-[#0EA5E9] font-medium"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      이용약관
+                    </Link>
+                    {' 및 '}
+                    <Link
+                      href="/privacy"
+                      className="text-[#38BDF8] hover:text-[#0EA5E9] font-medium"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      개인정보처리방침
+                    </Link>
+                    에 동의합니다.
+                  </span>
+                </label>
               </div>
 
               {error && (

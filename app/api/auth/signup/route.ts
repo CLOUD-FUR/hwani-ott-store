@@ -8,10 +8,11 @@ import { createLog } from '@/lib/logger';
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as { email?: unknown; password?: unknown; name?: unknown };
+    const body = await request.json() as { email?: unknown; password?: unknown; name?: unknown; termsAccepted?: unknown };
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
     const password = typeof body.password === 'string' ? body.password : '';
     const name = typeof body.name === 'string' ? body.name.trim() : '';
+    const termsAccepted = body.termsAccepted === true;
     const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
     const userAgent = request.headers.get('user-agent') || undefined;
 
@@ -27,6 +28,13 @@ export async function POST(request: Request) {
     if (!email || !password || !name) {
       return NextResponse.json(
         { success: false, error: '모든 필드를 입력해주세요.' },
+        { status: 400 }
+      );
+    }
+
+    if (!termsAccepted) {
+      return NextResponse.json(
+        { success: false, error: '약관에 동의해 주세요.' },
         { status: 400 }
       );
     }

@@ -1,11 +1,32 @@
 import nodemailer, { type Transporter } from 'nodemailer';
 import { prisma } from './prisma';
+import { Settings } from '@prisma/client';
 
 let transporter: Transporter | null = null;
 let senderEmail: string | undefined;
 
+// Simple in-memory settings cache to avoid repeated DB queries for the same data.
+// Settings rarely change; a 5-minute TTL is sufficient for a store config.
+const SETTINGS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+let settingsCache: { data: Settings | null; expiresAt: number } | null = null;
+
 function userFromEnvironment() {
   return process.env.SMTP_USER || 'no-reply@example.com';
+}
+
+// Cache-busted settings fetch (call this when settings change to invalidate the cache)
+export function invalidateSettingsCache(): void {
+  settingsCache = null;
+}
+
+async function getSettings(): Promise<Settings | null> {
+  const now = Date.now();
+  if (settingsCache && settingsCache.expiresAt > now) {
+    return settingsCache.data;
+  }
+  const settings = await prisma.settings.findUnique({ where: { id: 'settings' } });
+  settingsCache = { data: settings, expiresAt: now + SETTINGS_CACHE_TTL };
+  return settings;
 }
 
 // 이메일 발송 기록을 email_logs 테이블에 저장
@@ -14,7 +35,7 @@ async function logEmail(
   subject: string,
   template: string,
   ok: boolean,
-  errorMessage?: string
+  errorMessage?: string,
 ): Promise<void> {
   try {
     await prisma.emailLog.create({
@@ -34,9 +55,7 @@ async function logEmail(
 async function getTransporter() {
   if (transporter) return transporter;
 
-  const settings = await prisma.settings.findUnique({
-    where: { id: 'settings' },
-  });
+  const settings = await getSettings();
 
   const host = settings?.smtpHost || process.env.SMTP_HOST || 'smtp.gmail.com';
   const port = settings?.smtpPort || parseInt(process.env.SMTP_PORT || '587');
@@ -65,10 +84,7 @@ export async function sendVerificationEmail(email: string, code: string): Promis
     throw new Error('SMTP not configured');
   }
 
-  const settings = await prisma.settings.findUnique({
-    where: { id: 'settings' },
-  });
-
+  const settings = await getSettings();
   const siteName = settings?.siteName || '화니 OTT';
 
   const html = `
@@ -148,7 +164,7 @@ export async function sendOrderConfirmationEmail(
     totalAmount: number;
     items: Array<{ productName?: string; optionName?: string; quantity: number; price: number }>;
     accountInfo?: { bankName: string; bankAccount: string; accountHolder: string };
-  }
+  },
 ): Promise<void> {
   const transport = await getTransporter();
   if (!transport) {
@@ -156,10 +172,7 @@ export async function sendOrderConfirmationEmail(
     return;
   }
 
-  const settings = await prisma.settings.findUnique({
-    where: { id: 'settings' },
-  });
-
+  const settings = await getSettings();
   const siteName = settings?.siteName || '화니 OTT';
   const channelTalkUrl = settings?.channelTalkUrl;
 
@@ -177,7 +190,7 @@ export async function sendOrderConfirmationEmail(
         ${(item.price * item.quantity).toLocaleString()}원
       </td>
     </tr>
-  `
+  `,
     )
     .join('');
 
@@ -317,7 +330,7 @@ export async function sendOrderStatusEmail(
   email: string,
   orderNumber: string,
   status: string,
-  message?: string
+  message?: string,
 ): Promise<void> {
   const transport = await getTransporter();
   if (!transport) {
@@ -325,10 +338,7 @@ export async function sendOrderStatusEmail(
     return;
   }
 
-  const settings = await prisma.settings.findUnique({
-    where: { id: 'settings' },
-  });
-
+  const settings = await getSettings();
   const siteName = settings?.siteName || '화니 OTT';
 
   const statusTitles: Record<string, string> = {

@@ -125,6 +125,8 @@ model Order {
   @@index([status])
   @@index([orderNumber])
   @@index([createdAt])
+  @@index([userId, status])
+  @@index([userId, createdAt])
 }
 
 enum OrderStatus {
@@ -193,6 +195,7 @@ model TierConfig {
   order         Int      @default(0)
 
   @@index([tier])
+  @@index([minPurchase])
 }
 
 model EmailLog {

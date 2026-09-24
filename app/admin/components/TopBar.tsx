@@ -18,8 +18,19 @@ export default function TopBar({
   const router = useRouter();
 
   useEffect(() => {
-    const stored = localStorage.getItem('adminUsername');
-    if (stored) setUsername(stored);
+    void (async () => {
+      try {
+        const res = await fetch('/api/admin/auth/me');
+        if (!res.ok) {
+          router.push('/admin/login');
+          return;
+        }
+        const data = await res.json();
+        setUsername(data.data?.username || null);
+      } catch (error) {
+        console.error('Admin session check error:', error);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -37,8 +48,7 @@ export default function TopBar({
   const handleLogout = async () => {
     try {
       await fetch("/api/admin/auth/logout", { method: "POST" });
-      localStorage.removeItem('adminSession');
-      localStorage.removeItem('adminUsername');
+      setUsername(null);
       router.push('/admin/login');
     } catch (error) {
       console.error('Logout error:', error);
