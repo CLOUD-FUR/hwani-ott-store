@@ -10,7 +10,14 @@ export async function PUT(
   if (!await getAdminUsername()) return NextResponse.json({ success: false, error: '관리자 로그인이 필요합니다.' }, { status: 401 });
   try {
     const { id } = await params;
-    const { title, content, link, isActive, startDate, endDate } = await request.json();
+    const { title, content, link, image, isActive, startDate, endDate } = await request.json();
+
+    if (image !== undefined && image !== null && typeof image !== 'string') {
+      return NextResponse.json(
+        { success: false, error: 'image는 문자열 URL 또는 null이어야 합니다.' },
+        { status: 400 }
+      );
+    }
 
     const notice = await prisma.notice.findUnique({
       where: { id: id },
@@ -29,6 +36,7 @@ export async function PUT(
         title,
         content,
         link,
+        image: image ?? null,
         isActive,
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,

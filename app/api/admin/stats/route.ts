@@ -83,6 +83,28 @@ export async function GET() {
       };
     });
 
+    // 이메일 발송 통계 (기획서: 이메일 발송 기록)
+    const [emailTotal, emailFailed, recentEmails] = await Promise.all([
+      prisma.emailLog.count(),
+      prisma.emailLog.count({ where: { status: 'failed' } }),
+      prisma.emailLog.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: { id: true, recipient: true, subject: true, template: true, status: true, createdAt: true },
+      }),
+    ]);
+
+    // 채팅 요약 (기획서: 관리자 채팅)
+    const [chatTotal, chatUnread, recentMessages] = await Promise.all([
+      prisma.message.count(),
+      prisma.message.count({ where: { senderType: 'user', readAt: null } }),
+      prisma.message.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: { id: true, roomId: true, senderType: true, content: true, createdAt: true },
+      }),
+    ]);
+
     return NextResponse.json({
       success: true,
       data: {
@@ -93,6 +115,12 @@ export async function GET() {
         totalUsers,
         pendingOrders,
         dailyRevenue,
+        emailTotal,
+        emailFailed,
+        recentEmails,
+        chatTotal,
+        chatUnread,
+        recentMessages,
       },
     });
   } catch (error) {

@@ -192,6 +192,34 @@ model TierConfig {
   @@index([tier])
 }
 
+model EmailLog {
+  id        String   @id @default(uuid())
+  recipient String   // 수신자 이메일
+  subject   String   // 이메일 제목
+  template  String   // 템플릿 종류 (verification, order_confirmation, order_status)
+  status    String   @default("sent") // sent, failed
+  error     String?  @db.Text // 실패 시 에러 메시지
+  createdAt DateTime @default(now())
+
+  @@index([recipient])
+  @@index([template])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  roomId    String   // 채팅방 ID
+  senderId  String?  // 발신자 (admin 또는 user ID)
+  senderType String  // admin 또는 user
+  content   String   @db.Text
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([roomId])
+  @@index([createdAt])
+}
+
 model Log {
   id        String   @id @default(uuid())
   type      LogType

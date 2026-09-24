@@ -26,11 +26,18 @@ export async function GET() {
 export async function POST(request: Request) {
   if (!await getAdminUsername()) return NextResponse.json({ success: false, error: '관리자 로그인이 필요합니다.' }, { status: 401 });
   try {
-    const { title, content, link, isActive, startDate, endDate } = await request.json();
+    const { title, content, link, image, isActive, startDate, endDate } = await request.json();
 
     if (typeof title !== 'string' || typeof content !== 'string' || title.length > 200 || content.length > 10000 || (link && (!link.startsWith('https://') && !link.startsWith('http://')))) {
       return NextResponse.json(
         { success: false, error: '제목과 내용을 입력해주세요.' },
+        { status: 400 }
+      );
+    }
+
+    if (image !== undefined && image !== null && typeof image !== 'string') {
+      return NextResponse.json(
+        { success: false, error: 'image는 문자열 URL 또는 null이어야 합니다.' },
         { status: 400 }
       );
     }
@@ -40,6 +47,7 @@ export async function POST(request: Request) {
         title,
         content,
         link,
+        image: image ?? null,
         isActive: isActive ?? true,
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,

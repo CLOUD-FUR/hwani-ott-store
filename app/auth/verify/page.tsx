@@ -13,7 +13,40 @@ function VerifyContent() {
   const [code, setCode] = useState('');
   const [email, setEmail] = useState(emailParam || '');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  const handleResend = async () => {
+    setError('');
+    setNotice('');
+
+    if (!email.trim()) {
+      setError('이메일을 입력해주세요.');
+      return;
+    }
+
+    setResending(true);
+    try {
+      const res = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setNotice(data.message || '인증 코드를 다시 발송했습니다.');
+      } else {
+        setError(data.error || '인증 코드 재발송에 실패했습니다.');
+      }
+    } catch {
+      setError('서버 오류가 발생했습니다.');
+    } finally {
+      setResending(false);
+    }
+  };
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,6 +137,12 @@ function VerifyContent() {
                 </div>
               )}
 
+              {notice && (
+                <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 text-sm">
+                  {notice}
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={loading || code.length !== 6}
@@ -117,10 +156,12 @@ function VerifyContent() {
               <p className="text-sm text-gray-500">
                 이메일을 받지 못하셨나요?{' '}
                 <button
-                  onClick={() => window.location.reload()}
-                  className="text-[#38BDF8] hover:text-[#0EA5E9] font-medium"
+                  type="button"
+                  onClick={handleResend}
+                  disabled={resending}
+                  className="text-[#38BDF8] hover:text-[#0EA5E9] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  다시 시도
+                  {resending ? '발송 중...' : '인증 코드 다시 받기'}
                 </button>
               </p>
             </div>

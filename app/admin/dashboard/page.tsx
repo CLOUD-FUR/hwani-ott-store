@@ -4,6 +4,23 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+interface EmailLogSummary {
+  id: string;
+  recipient: string;
+  subject: string;
+  template: string;
+  status: string;
+  createdAt: string;
+}
+
+interface MessageSummary {
+  id: string;
+  roomId: string;
+  senderType: string;
+  content: string;
+  createdAt: string;
+}
+
 interface Stats {
   currentMonthRevenue: number;
   lastMonthRevenue: number;
@@ -12,6 +29,12 @@ interface Stats {
   totalUsers: number;
   pendingOrders: number;
   dailyRevenue: Array<{ date: string; revenue: number }>;
+  emailTotal?: number;
+  emailFailed?: number;
+  recentEmails?: EmailLogSummary[];
+  chatTotal?: number;
+  chatUnread?: number;
+  recentMessages?: MessageSummary[];
 }
 
 export default function AdminDashboard() {
@@ -128,6 +151,99 @@ export default function AdminDashboard() {
                 </div>
               );
             })}
+          </div>
+        </div>
+
+        {/* 이메일 / 채팅 요약 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* 최근 이메일 */}
+          <div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">최근 이메일</h2>
+              <button
+                onClick={() => router.push('/admin/emails')}
+                className="text-sm text-sky-400 hover:text-sky-300 transition"
+              >
+                전체 보기 →
+              </button>
+            </div>
+            <div className="flex gap-4 mb-4 text-sm">
+              <span className="text-slate-400">
+                총 <b className="text-slate-200">{(stats?.emailTotal ?? 0).toLocaleString()}</b>건
+              </span>
+              <span className="text-slate-400">
+                실패 <b className="text-red-400">{(stats?.emailFailed ?? 0).toLocaleString()}</b>건
+              </span>
+            </div>
+            {stats?.recentEmails && stats.recentEmails.length > 0 ? (
+              <ul className="space-y-3">
+                {stats.recentEmails.map((email) => (
+                  <li key={email.id} className="flex items-start justify-between gap-3 border-b border-slate-800 pb-3 last:border-0 last:pb-0">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm text-slate-200" title={email.subject}>
+                        {email.subject}
+                      </p>
+                      <p className="truncate text-xs text-slate-500">{email.recipient}</p>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                        email.status === 'sent'
+                          ? 'bg-emerald-500/10 text-emerald-400'
+                          : 'bg-red-500/10 text-red-400'
+                      }`}
+                    >
+                      {email.status === 'sent' ? '성공' : '실패'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="py-6 text-center text-sm text-slate-500">발송된 이메일이 없습니다.</p>
+            )}
+          </div>
+
+          {/* 최근 채팅 */}
+          <div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">최근 채팅</h2>
+              <button
+                onClick={() => router.push('/admin/chat')}
+                className="text-sm text-sky-400 hover:text-sky-300 transition"
+              >
+                전체 보기 →
+              </button>
+            </div>
+            <div className="flex gap-4 mb-4 text-sm">
+              <span className="text-slate-400">
+                총 <b className="text-slate-200">{(stats?.chatTotal ?? 0).toLocaleString()}</b>건
+              </span>
+              <span className="text-slate-400">
+                안 읽음 <b className="text-orange-400">{(stats?.chatUnread ?? 0).toLocaleString()}</b>건
+              </span>
+            </div>
+            {stats?.recentMessages && stats.recentMessages.length > 0 ? (
+              <ul className="space-y-3">
+                {stats.recentMessages.map((message) => (
+                  <li key={message.id} className="border-b border-slate-800 pb-3 last:border-0 last:pb-0">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="truncate font-mono text-xs text-slate-500">{message.roomId}</span>
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                          message.senderType === 'admin'
+                            ? 'bg-indigo-500/10 text-indigo-400'
+                            : 'bg-slate-500/10 text-slate-400'
+                        }`}
+                      >
+                        {message.senderType === 'admin' ? '관리자' : '회원'}
+                      </span>
+                    </div>
+                    <p className="mt-1 truncate text-sm text-slate-300">{message.content}</p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="py-6 text-center text-sm text-slate-500">채팅 메시지가 없습니다.</p>
+            )}
           </div>
         </div>
 

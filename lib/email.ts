@@ -8,6 +8,29 @@ function userFromEnvironment() {
   return process.env.SMTP_USER || 'no-reply@example.com';
 }
 
+// 이메일 발송 기록을 email_logs 테이블에 저장
+async function logEmail(
+  recipient: string,
+  subject: string,
+  template: string,
+  ok: boolean,
+  errorMessage?: string
+): Promise<void> {
+  try {
+    await prisma.emailLog.create({
+      data: {
+        recipient,
+        subject: subject.slice(0, 300),
+        template,
+        status: ok ? 'sent' : 'failed',
+        error: ok ? null : (errorMessage ?? '알 수 없는 오류').slice(0, 1000),
+      },
+    });
+  } catch (logError) {
+    console.error('Email log creation error:', logError);
+  }
+}
+
 async function getTransporter() {
   if (transporter) return transporter;
 
@@ -102,12 +125,20 @@ export async function sendVerificationEmail(email: string, code: string): Promis
 </html>
   `;
 
-  await transport.sendMail({
-    from: `"${siteName}" <${senderEmail || userFromEnvironment()}>`,
-    to: email,
-    subject: `[${siteName}] 이메일 인증 코드`,
-    html,
-  });
+  const subject = `[${siteName}] 이메일 인증 코드`;
+
+  try {
+    await transport.sendMail({
+      from: `"${siteName}" <${senderEmail || userFromEnvironment()}>`,
+      to: email,
+      subject,
+      html,
+    });
+    await logEmail(email, subject, 'verification', true);
+  } catch (error) {
+    await logEmail(email, subject, 'verification', false, error instanceof Error ? error.message : String(error));
+    throw error;
+  }
 }
 
 export async function sendOrderConfirmationEmail(
@@ -266,12 +297,20 @@ export async function sendOrderConfirmationEmail(
 </html>
   `;
 
-  await transport.sendMail({
-    from: `"${siteName}" <${senderEmail || userFromEnvironment()}>`,
-    to: email,
-    subject: `[${siteName}] 주문이 접수되었습니다 (${orderNumber})`,
-    html,
-  });
+  const subject = `[${siteName}] 주문이 접수되었습니다 (${orderNumber})`;
+
+  try {
+    await transport.sendMail({
+      from: `"${siteName}" <${senderEmail || userFromEnvironment()}>`,
+      to: email,
+      subject,
+      html,
+    });
+    await logEmail(email, subject, 'order_confirmation', true);
+  } catch (error) {
+    await logEmail(email, subject, 'order_confirmation', false, error instanceof Error ? error.message : String(error));
+    throw error;
+  }
 }
 
 export async function sendOrderStatusEmail(
@@ -371,10 +410,18 @@ export async function sendOrderStatusEmail(
 </html>
   `;
 
-  await transport.sendMail({
-    from: `"${siteName}" <${senderEmail || userFromEnvironment()}>`,
-    to: email,
-    subject: `[${siteName}] ${statusTitle} (${orderNumber})`,
-    html,
-  });
+  const subject = `[${siteName}] ${statusTitle} (${orderNumber})`;
+
+  try {
+    await transport.sendMail({
+      from: `"${siteName}" <${senderEmail || userFromEnvironment()}>`,
+      to: email,
+      subject,
+      html,
+    });
+    await logEmail(email, subject, 'order_status', true);
+  } catch (error) {
+    await logEmail(email, subject, 'order_status', false, error instanceof Error ? error.message : String(error));
+    throw error;
+  }
 }

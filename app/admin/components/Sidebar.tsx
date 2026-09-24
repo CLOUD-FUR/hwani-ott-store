@@ -74,6 +74,15 @@ const navItems: NavItem[] = [
     ),
   },
   {
+    label: "채팅",
+    href: "/admin/chat",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </svg>
+    ),
+  },
+  {
     label: "역할",
     href: "/admin/tiers",
     icon: (
@@ -92,6 +101,16 @@ const navItems: NavItem[] = [
         <path d="M16 13H8" />
         <path d="M16 17H8" />
         <path d="M10 9H8" />
+      </svg>
+    ),
+  },
+  {
+    label: "이메일",
+    href: "/admin/emails",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="4" width="20" height="16" rx="2" />
+        <path d="m22 7-10 6L2 7" />
       </svg>
     ),
   },

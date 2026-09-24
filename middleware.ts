@@ -9,7 +9,7 @@ export function middleware(request: NextRequest) {
   }
 
   // Check admin session for all other admin routes
-  if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
+  if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin') || pathname.startsWith('/teams')) {
     const sessionToken = request.cookies.get('admin_session')?.value;
 
     if (!sessionToken) {
@@ -31,5 +31,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/api/admin/:path*'],
+  matcher: ['/admin/:path*', '/api/admin/:path*', '/teams/:path*'],
 };

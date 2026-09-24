@@ -9,6 +9,7 @@ interface Notice {
   title: string;
   content: string;
   link: string | null;
+  image: string | null;
   isActive: boolean;
   startDate: string | null;
   endDate: string | null;
@@ -25,10 +26,12 @@ export default function AdminNoticesPage() {
     title: '',
     content: '',
     link: '',
+    image: '',
     isActive: true,
     startDate: '',
     endDate: '',
   });
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     fetchNotices();
@@ -52,6 +55,39 @@ export default function AdminNoticesPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+
+      const res = await fetch('/api/admin/upload', {
+        method: 'POST',
+        body: form,
+      });
+
+      const data = await res.json();
+      if (data.success && data.url) {
+        setFormData({ ...formData, image: data.url });
+      } else {
+        alert(data.error || '이미지 업로드에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Image upload error:', error);
+      alert('이미지 업로드 중 오류가 발생했습니다.');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setFormData({ ...formData, image: '' });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -78,6 +114,7 @@ export default function AdminNoticesPage() {
           title: '',
           content: '',
           link: '',
+          image: '',
           isActive: true,
           startDate: '',
           endDate: '',
@@ -96,6 +133,7 @@ export default function AdminNoticesPage() {
       title: notice.title,
       content: notice.content,
       link: notice.link || '',
+      image: notice.image || '',
       isActive: notice.isActive,
       startDate: notice.startDate ? notice.startDate.split('T')[0] : '',
       endDate: notice.endDate ? notice.endDate.split('T')[0] : '',
@@ -142,6 +180,7 @@ export default function AdminNoticesPage() {
                 title: '',
                 content: '',
                 link: '',
+                image: '',
                 isActive: true,
                 startDate: '',
                 endDate: '',
@@ -186,6 +225,13 @@ export default function AdminNoticesPage() {
                       </span>
                     </div>
                     <p className="text-slate-400 text-sm mb-2">{notice.content}</p>
+                    {notice.image && (
+                      <img
+                        src={notice.image}
+                        alt="공지 이미지"
+                        className="mt-2 max-w-[200px] max-h-[100px] object-cover rounded border border-slate-700"
+                      />
+                    )}
                     {notice.link && (
                       <a
                         href={notice.link}
@@ -268,6 +314,37 @@ export default function AdminNoticesPage() {
                   placeholder="https://example.com"
                   className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-sky-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">배너 이미지 (선택)</label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={handleImageUpload}
+                  disabled={uploading}
+                  className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-slate-800 file:text-sky-400 hover:file:bg-slate-700"
+                />
+                {uploading && <p className="mt-1 text-xs text-slate-500">업로드 중...</p>}
+                {formData.image && (
+                  <div className="mt-3 relative inline-block">
+                    <img
+                      src={formData.image}
+                      alt="공지 이미지 미리보기"
+                      className="max-w-full h-32 w-32 object-cover rounded-lg border border-slate-700"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="absolute top-1 right-1 p-1 bg-slate-700 hover:bg-slate-600 rounded transition"
+                      aria-label="이미지 제거"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" className="h-3 w-3 text-slate-300" stroke="currentColor" strokeWidth={2}>
+                        <path d="M18 6L6 18M6 18M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
