@@ -126,7 +126,7 @@ function ProductDetailContent({ product }: { product: Product }) {
             {/* Product Info */}
             <div className="flex flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
               <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl mb-4">{product.name}</h1>
-              <p className="text-slate-600 text-lg mb-8 leading-relaxed">
+              <p className="text-slate-600 text-lg mb-8 leading-relaxed whitespace-pre-wrap">
                 {product.description}
               </p>
 

@@ -41,7 +41,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       keywords: input.keywords !== undefined ? (input.keywords?.trim() || null) : current.keywords,
     };
     const product = await prisma.$transaction(async (tx) => {
-      if (input.options) await tx.productOption.deleteMany({ where: { productId: id } });
+      if (input.options !== undefined) await tx.productOption.deleteMany({ where: { productId: id } });
       return tx.product.update({ where: { id }, data: { ...data, ...(input.options ? { options: { create: input.options.map((option, index) => ({ name: option.name.trim(), price: Number(option.price ?? 0), stock: Number(option.stock ?? 999), order: index })) } } : {}) }, include: { options: true } });
     });
     await createLog({ type: LogType.PRODUCT, action: '상품 수정', details: { productId: id, admin } });

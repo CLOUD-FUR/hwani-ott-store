@@ -127,7 +127,7 @@ export default function AdminProductFormPage() {
         },
         body: JSON.stringify({
           ...formData,
-          options: options.length > 0 ? options : undefined,
+          options: options,
         }),
       });
 
